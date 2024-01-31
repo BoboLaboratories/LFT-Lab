@@ -144,4 +144,8 @@ public class Lexer {
         }
     }
 
+    public int getLine() {
+        return line;
+    }
+
 }
