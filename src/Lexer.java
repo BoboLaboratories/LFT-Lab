@@ -1,5 +1,3 @@
-import com.sun.istack.internal.Nullable;
-
 import java.io.*;
 
 public class Lexer {
@@ -22,7 +20,7 @@ public class Lexer {
         peek = ' ';
         return token;
     }
-    
+
     private Token error(char prev) {
         System.err.println("Erroneous character after " + prev + " : " + peek);
         return null;
@@ -88,13 +86,20 @@ public class Lexer {
                 return new Token(Tag.EOF);
             default:
                 StringBuilder sb = new StringBuilder();
-                if (Character.isLetter(peek)) {
+                if (Character.isLetter(peek) || peek == '_') {
+                    boolean isAccepted = peek != '_';
                     do {
+                        isAccepted |= peek != '_';
                         sb.append(peek);
                         readChar(br);
-                    } while (Character.isLetterOrDigit(peek));
+                    } while (Character.isLetterOrDigit(peek) || peek == '_');
 
                     String lexeme = sb.toString();
+                    if (!isAccepted) {
+                        System.err.println("Erroneous char sequence " + lexeme);
+                        return null;
+                    }
+
                     switch (lexeme) {
                         case "assign": return Word.ASSIGN;
                         case "begin":  return Word.BEGIN;
