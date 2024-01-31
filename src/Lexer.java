@@ -127,6 +127,10 @@ public class Lexer {
         }
     }
 
+    public int getLine() {
+        return line;
+    }
+
     public static void main(String[] args) {
         Lexer lex = new Lexer();
         try {
