@@ -56,23 +56,23 @@ public class Lexer {
             case '*':
                 return reset(Token.MULT);
             case '/':
-                readChar(br);
-                if (peek == '/') {
-                    while (peek != '\n' && peek != '\r' && peek != EOF) {
-                        readChar(br);
-                    }
-                    return reset(scan(br));
-                } else if (peek == '*') {
-                    while (peek != '/') {
-                        do {
+                switch (readChar(br)) {
+                    case '/':
+                        while (peek != '\n' && peek != '\r' && peek != EOF) {
                             readChar(br);
-                        } while (peek != '*');
-                        readChar(br);
-                    }
-                    readChar(br); // removes last /
-                    return reset(scan(br));
-                } else {
-                    return reset(Token.DIV);
+                        }
+                        return scan(br);
+                    case '*':
+                        while (peek != '/') {
+                            do {
+                                readChar(br);
+                            } while (peek != '*');
+                            readChar(br);
+                        }
+                        readChar(br); // consumes last '/'
+                        return scan(br);
+                    default:
+                        return Token.DIV;
                 }
             case ';':
                 return reset(Token.SEMICOLON);
