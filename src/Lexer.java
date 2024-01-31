@@ -144,19 +144,4 @@ public class Lexer {
         }
     }
 
-    public static void main(String[] args) {
-        Lexer lex = new Lexer();
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(args[0]));
-            Token tok;
-            do {
-                tok = lex.scan(br);
-                System.out.println("Scan: " + tok);
-            } while (tok.tag != Tag.EOF);
-            br.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
 }
