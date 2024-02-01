@@ -1,5 +1,3 @@
-import com.sun.istack.internal.Nullable;
-
 import java.io.*;
 
 public class Lexer {
