@@ -66,7 +66,7 @@ public class Lexer {
             case '|':
                 return (readChar(br) == '|') ? reset(Word.OR) : error('|');
             case '=':
-                return (readChar(br) == '=') ? reset(Word.OR) : error('=');
+                return (readChar(br) == '=') ? reset(Word.EQ) : error('=');
             case '<':
                 switch (readChar(br)) {
                     case '=':
