@@ -2,12 +2,17 @@ import java.io.*;
 
 public final class Parser {
 
+    private final SymbolTable symbols;
+    private final CodeGenerator code;
     private final BufferedReader br;
     private final Lexer lexer;
 
+    private int count = 0;
     private Token look;
 
     public Parser(Lexer lexer, BufferedReader br) {
+        symbols = new SymbolTable();
+        code = new CodeGenerator();
         this.lexer = lexer;
         this.br = br;
         move();
@@ -18,8 +23,19 @@ public final class Parser {
         System.out.println("token = " + look);
     }
 
-    private void error(String message) {
-        throw new Error("near line " + lexer.getLine() + ": " + message);
+    private void error(String variable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("unexpected token <");
+        sb.append(look.tag == -1 ? "EOF" : look.tag);
+        if (look.getLexeme() != null && !look.getLexeme().isEmpty()) {
+            sb.append(", ");
+            sb.append(look.getLexeme());
+        }
+        sb.append("> parsing <");
+        sb.append(variable);
+        sb.append("> near line ");
+        sb.append(lexer.getLine());
+        throw new SyntaxError(sb.toString());
     }
 
     private void match(int tag) {
@@ -28,7 +44,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error("syntax error, expected tag: " + tag);
+            error(Thread.currentThread().getStackTrace()[2].getMethodName());
         }
     }
 
@@ -300,9 +316,11 @@ public final class Parser {
             parser.start();
             System.out.println("Input OK");
             br.close();
+        } catch (SyntaxError e) {
+            System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
 }

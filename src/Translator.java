@@ -1,31 +1,6 @@
 import java.io.*;
 
 public class Translator {
-    private Lexer lex;
-    private BufferedReader pbr;
-    private Token look;
-    
-    SymbolTable st = new SymbolTable();
-    CodeGenerator code = new CodeGenerator();
-    int count=0;
-
-    public Translator(Lexer l, BufferedReader br) {
-        lex = l;
-        pbr = br;
-        move();
-    }
-
-    void move() { 
-	// come in Esercizio 3.1
-    }
-
-    void error(String s) { 
-	// come in Esercizio 3.1
-    }
-
-    void match(int t) {
-	// come in Esercizio 3.1
-    }
 
     public void prog() {        
 	// ... completare ...
