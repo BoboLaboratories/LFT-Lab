@@ -94,12 +94,12 @@ public final class Parser {
         switch (look.tag) {
             case '*': // <termp> -> * <fact> <termp>
                 match(Token.MULT);
-                term();
+                fact();
                 exprp();
                 break;
             case '/': // <termp> -> / <fact> <termp>
                 match(Token.DIV);
-                term();
+                fact();
                 exprp();
                 break;
             default: // <termp> -> ε
