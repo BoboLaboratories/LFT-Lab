@@ -1,13 +1,13 @@
 import java.io.*;
 
-public final class Parser {
+public final class Valutatore {
 
     private final BufferedReader br;
     private final Lexer lexer;
 
     private Token look;
 
-    public Parser(Lexer lexer, BufferedReader br) {
+    public Valutatore(Lexer lexer, BufferedReader br) {
         this.lexer = lexer;
         this.br = br;
         move();
@@ -18,8 +18,8 @@ public final class Parser {
         System.out.println("token = " + look);
     }
 
-    private void error(String message) {
-        throw new Error("near line " + lexer.getLine() + ": " + message);
+    private Error error(String message) {
+        return new Error("near line " + lexer.getLine() + ": " + message);
     }
 
     private void match(Token token) {
@@ -32,7 +32,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error("syntax error");
+            throw error("syntax error");
         }
     }
 
@@ -40,94 +40,107 @@ public final class Parser {
         switch (look.tag) {
             case '(':
             case Tag.NUM:
-                expr();
+                int val = expr();
+                System.out.println("Valutatore: " + val);
                 match(Tag.EOF);
                 break;
             default:
-                error("start");
+                throw error("start");
         }
     }
     
-    private void expr() {
+    private int expr() {
+        int val, termVal;
         switch (look.tag) {
             case '(':
             case Tag.NUM:
-                term();
-                exprp();
+                termVal = term();
+                val = exprp(termVal);
                 break;
             default:
-                error("expr");
+                throw error("expr");
         }
+        return val;
     }
 
-    private void exprp() {
+    private int exprp(int i) {
+        int val, termVal;
         switch (look.tag) {
             case '+': // <exprp> -> + <term> <exprp>
                 match(Token.PLUS);
-                term();
-                exprp();
+                termVal = term();
+                val = exprp(i + termVal);
                 break;
             case '-': // <exprp> -> - <term> <exprp>
                 match(Token.MINUS);
-                term();
-                exprp();
+                termVal = term();
+                val = exprp(i - termVal);
                 break;
             default: // <exprp> -> ε
+                val = i;
                 break;
         }
+        return val;
     }
 
-    private void term() {
+    private int term() {
+        int val, factVal;
         switch (look.tag) {
             case '(':
             case Tag.NUM:
-                fact();
-                termp();
+                factVal = fact();
+                val = termp(factVal);
                 break;
             default:
-                error("term");
+                throw error("term");
         }
+        return val;
     }
 
-    private void termp() {
+    private int termp(int i) {
+        int val, factVal;
         switch (look.tag) {
             case '*': // <termp> -> * <fact> <termp>
                 match(Token.MULT);
-                fact();
-                termp();
+                factVal = fact();
+                val = termp(i * factVal);
                 break;
             case '/': // <termp> -> / <fact> <termp>
                 match(Token.DIV);
-                fact();
-                termp();
+                factVal = fact();
+                val = termp(i / factVal);
                 break;
             default: // <termp> -> ε
+                val = i;
                 break;
         }
+        return val;
     }
 
-    private void fact() {
+    private int fact() {
+        int val;
         switch (look.tag) {
             case '(':
                 match('(');
-                expr();
+                val = expr();
                 match(')');
                 break;
             case Tag.NUM:
+                val = Integer.parseInt(look.getLexeme());
                 match(Tag.NUM);
                 break;
             default:
-                error("fact");
-                break;
+                throw error("fact");
         }
+        return val;
     }
 
     public static void main(String[] args) {
         Lexer lex = new Lexer();
         try {
             BufferedReader br = new BufferedReader(new FileReader(args[0]));
-            Parser parser = new Parser(lex, br);
-            parser.start();
+            Valutatore valutatore = new Valutatore(lex, br);
+            valutatore.start();
             System.out.println("Input OK");
             br.close();
         } catch (IOException e) {
