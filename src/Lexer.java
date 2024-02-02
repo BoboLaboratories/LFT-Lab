@@ -1,6 +1,6 @@
 import java.io.*;
 
-public class Lexer {
+public final class Lexer {
 
     private static final char EOF = (char) -1;
 
@@ -21,9 +21,9 @@ public class Lexer {
         return token;
     }
     
-    private Token error(char prev) {
-        System.err.println("Erroneous character after " + prev + " : " + peek);
-        return null;
+    private Token erroneousChar(char prev) {
+        String tmp = (peek == EOF) ? "EOF" : Character.toString(peek);
+        throw new SyntaxError("erroneous character '" + tmp + "' after '" + prev + "'");
     }
 
     public Token scan(BufferedReader br) {
@@ -58,7 +58,7 @@ public class Lexer {
 
             // init
             case ':':
-                return (readChar(br) == '=') ? reset(Word.INIT) : error(':');
+                return (readChar(br) == '=') ? reset(Word.INIT) : erroneousChar(':');
 
             // math operators
             case '+':
@@ -74,14 +74,14 @@ public class Lexer {
             case '!':
                 return reset(Token.NOT);
             case '&':
-                return (readChar(br) == '&') ? reset(Word.AND) : error('&');
+                return (readChar(br) == '&') ? reset(Word.AND) : erroneousChar('&');
             case '|':
-                return (readChar(br) == '|') ? reset(Word.OR) : error('|');
+                return (readChar(br) == '|') ? reset(Word.OR) : erroneousChar('|');
 
 
             // relational operations
             case '=':
-                return (readChar(br) == '=') ? reset(Word.EQ) : error('=');
+                return (readChar(br) == '=') ? reset(Word.EQ) : erroneousChar('=');
             case '>':
                 if (readChar(br) == '=') {
                     return reset(Word.GE);
@@ -126,15 +126,23 @@ public class Lexer {
                         default:       return new Word(Tag.ID, lexeme);
                     }
                 } else if (Character.isDigit(peek)) {
-                    do {
-                        sb.append(peek);
+                    if (peek == '0') {
                         readChar(br);
-                    } while (Character.isDigit(peek));
+                        if (Character.isDigit(peek)) {
+                            erroneousChar('0');
+                        } else {
+                            sb.append('0');
+                        }
+                    } else {
+                        do {
+                            sb.append(peek);
+                            readChar(br);
+                        } while (Character.isDigit(peek));
+                    }
                     String lexeme = sb.toString();
                     return new NumberTok(lexeme);
                 } else {
-                    System.err.println("Erroneous character: " + peek);
-                    return null;
+                    throw new SyntaxError("erroneous character '" + peek + "'");
                 }
         }
     }
@@ -153,6 +161,8 @@ public class Lexer {
                 System.out.println("Scan: " + tok);
             } while (tok.tag != Tag.EOF);
             br.close();
+        } catch (SyntaxError e) {
+            System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
