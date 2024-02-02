@@ -19,11 +19,18 @@ public final class Parser {
     }
 
     private void error(String variable) {
-        throw new SyntaxError("parsing <" + variable + "> near line " + lexer.getLine());
-    }
-
-    private void match(Token token) {
-        match(token.tag);
+        StringBuilder sb = new StringBuilder();
+        sb.append("unexpected token <");
+        sb.append(look.tag == -1 ? "EOF" : look.tag);
+        if (look.getLexeme() != null && !look.getLexeme().isEmpty()) {
+            sb.append(", ");
+            sb.append(look.getLexeme());
+        }
+        sb.append("> parsing <");
+        sb.append(variable);
+        sb.append("> near line ");
+        sb.append(lexer.getLine());
+        throw new SyntaxError(sb.toString());
     }
 
     private void match(int tag) {
@@ -32,7 +39,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error("syntax error");
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
         }
     }
 
@@ -63,12 +70,12 @@ public final class Parser {
     private void exprp() {
         switch (look.tag) {
             case '+': // <exprp> -> + <term> <exprp>
-                match(Token.PLUS);
+                match('+');
                 term();
                 exprp();
                 break;
             case '-': // <exprp> -> - <term> <exprp>
-                match(Token.MINUS);
+                match('-');
                 term();
                 exprp();
                 break;
@@ -92,12 +99,12 @@ public final class Parser {
     private void termp() {
         switch (look.tag) {
             case '*': // <termp> -> * <fact> <termp>
-                match(Token.MULT);
+                match('*');
                 fact();
                 termp();
                 break;
             case '/': // <termp> -> / <fact> <termp>
-                match(Token.DIV);
+                match('/');
                 fact();
                 termp();
                 break;
