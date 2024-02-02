@@ -39,7 +39,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            error(Thread.currentThread().getStackTrace()[2].getMethodName());
         }
     }
 
