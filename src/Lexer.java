@@ -35,8 +35,7 @@ public class Lexer {
         }
 
         switch (peek) {
-            case '!':
-                return reset(Token.NOT);
+            // parenthesis
             case '(':
                 return reset(Token.LPT);
             case ')':
@@ -49,6 +48,19 @@ public class Lexer {
                 return reset(Token.LPG);
             case '}':
                 return reset(Token.RPG);
+
+            // separators
+            case ',':
+                return reset(Token.COMMA);
+            case ';':
+                return reset(Token.SEMICOLON);
+
+
+            // init
+            case ':':
+                return (readChar(br) == '=') ? reset(Word.INIT) : error(':');
+
+            // math operators + comments
             case '+':
                 return reset(Token.PLUS);
             case '-':
@@ -57,33 +69,45 @@ public class Lexer {
                 return reset(Token.MULT);
             case '/':
                 switch (readChar(br)) {
-                    case '/':
+                    case '/':   // single-line comments
                         while (peek != '\n' && peek != '\r' && peek != EOF) {
                             readChar(br);
                         }
                         return scan(br);
-                    case '*':
+                    case '*':   // multi-line comments
                         while (peek != '/') {
                             do {
                                 readChar(br);
-                            } while (peek != '*');
-                            readChar(br);
+                            } while (peek != '*' && peek != EOF);
+                            if (peek == EOF) {
+                                return error(EOF);
+                            }
+                            readChar(br); // consumes '*'
                         }
                         readChar(br); // consumes last '/'
                         return scan(br);
-                    default:
+                    default:    // math division
                         return Token.DIV;
                 }
-            case ';':
-                return reset(Token.SEMICOLON);
-            case ',':
-                return reset(Token.COMMA);
+
+            // boolean operators
+            case '!':
+                return reset(Token.NOT);
             case '&':
                 return (readChar(br) == '&') ? reset(Word.AND) : error('&');
             case '|':
                 return (readChar(br) == '|') ? reset(Word.OR) : error('|');
+
+
+            // relational operations
             case '=':
                 return (readChar(br) == '=') ? reset(Word.EQ) : error('=');
+            case '>':
+                if (readChar(br) == '=') {
+                    return reset(Word.GE);
+                } else {
+                    return Word.GT;
+                }
             case '<':
                 switch (readChar(br)) {
                     case '=':
@@ -93,14 +117,12 @@ public class Lexer {
                     default:
                         return Word.LT;
                 }
-            case '>':
-                if (readChar(br) == '=') {
-                    return reset(Word.GE);
-                } else {
-                    return Word.GT;
-                }
+
+            // EOF
             case EOF:
                 return new Token(Tag.EOF);
+
+            // keywords, identifiers and numbers
             default:
                 StringBuilder sb = new StringBuilder();
                 if (Character.isLetter(peek) || peek == '_') {
