@@ -43,7 +43,7 @@ public final class Parser {
         }
     }
 
-    public void start() {
+    public void prog() {
         switch (look.tag) {
             case Tag.ASSIGN:
             case Tag.PRINT:
@@ -308,7 +308,7 @@ public final class Parser {
         try {
             BufferedReader br = new BufferedReader(new FileReader(args[0]));
             Parser parser = new Parser(lex, br);
-            parser.start();
+            parser.prog();
             System.out.println("Input OK");
             br.close();
         } catch (SyntaxError e) {
