@@ -22,25 +22,25 @@ public final class Parser {
         throw new Error("near line " + lexer.getLine() + ": " + message);
     }
 
-    private void match(Token token) {
-        match(token.tag);
-    }
-
     private void match(int tag) {
         if (look.tag == tag) {
             if (look.tag != Tag.EOF) {
                 move();
             }
         } else {
-            error("syntax error");
+            error("syntax error, expected tag: " + tag);
         }
     }
 
     public void start() {
         switch (look.tag) {
-            case '(':
-            case Tag.NUM:
-                expr();
+            case Tag.ASSIGN:
+            case Tag.PRINT:
+            case Tag.READ:
+            case Tag.FOR:
+            case Tag.IF:
+            case '{':
+                statlist();
                 match(Tag.EOF);
                 break;
             default:
@@ -48,78 +48,247 @@ public final class Parser {
         }
     }
 
+    private void statlist() {
+        switch (look.tag) {
+            case Tag.ASSIGN:
+            case Tag.PRINT:
+            case Tag.READ:
+            case Tag.FOR:
+            case Tag.IF:
+            case '{':
+                stat();
+                statlistp();
+                break;
+            default:
+                error("statlist");
+        }
+    }
+
+    private void statlistp() {
+        switch (look.tag) {
+            case ';':
+                match(';');
+                stat();
+                statlistp();
+                break;
+            case Tag.EOF:
+            case '}':
+                break;
+            default:
+                error("statlistp");
+        }
+    }
+
+    private void stat() {
+        switch (look.tag) {
+            case Tag.ASSIGN:
+                match(Tag.ASSIGN);
+                assignlist();
+                break;
+            case Tag.PRINT:
+                match(Tag.PRINT);
+                match('(');
+                exprlist();
+                match(')');
+                break;
+            case Tag.READ:
+                match(Tag.READ);
+                match('(');
+                idlist();
+                match(')');
+                break;
+            case Tag.FOR:
+                match(Tag.FOR);
+                match('(');
+                statc();
+                bexpr();
+                match(')');
+                match(Tag.DO);
+                stat();
+                break;
+            case Tag.IF:
+                match(Tag.IF);
+                match('(');
+                bexpr();
+                match(')');
+                stat();
+                statp();
+                match(Tag.END);
+                break;
+            case '{':
+                match('{');
+                statlist();
+                match('}');
+                break;
+            default:
+                error("stat");
+        }
+    }
+
+    private void statc() {
+        switch (look.tag) {
+            case Tag.ID:
+                match(Tag.ID);
+                match(Tag.INIT);
+                expr();
+                match(';');
+                break;
+            case Tag.RELOP:
+                break;
+            default:
+                error("statc");
+        }
+    }
+
+    private void statp() {
+        switch (look.tag) {
+            case Tag.ELSE:
+                match(Tag.ELSE);
+                stat();
+                break;
+            case Tag.END:
+                break;
+            default:
+                error("statp");
+        }
+    }
+
+    private void assignlist() {
+        switch (look.tag) {
+            case '[':
+                match('[');
+                expr();
+                match(Tag.TO);
+                idlist();
+                match(']');
+                assignlistp();
+                break;
+            default:
+                error("assignlist");
+        }
+    }
+
+    private void assignlistp() {
+        switch (look.tag) {
+            case '[':
+                match('[');
+                expr();
+                match(Tag.TO);
+                idlist();
+                match(']');
+                assignlistp();
+                break;
+            case ';':
+            case Tag.ELSE:
+            case Tag.END:
+            case Tag.EOF:
+            case '}':
+                break;
+            default:
+                error("assignlistp");
+        }
+    }
+
+    private void idlist() {
+        switch (look.tag) {
+            case Tag.ID:
+                match(Tag.ID);
+                idlistp();
+                break;
+            default:
+                error("idlist");
+        }
+    }
+
+    private void idlistp() {
+        switch (look.tag) {
+            case ',':
+                match(',');
+                match(Tag.ID);
+                idlistp();
+                break;
+            case ')':
+            case ']':
+                break;
+            default:
+                error("idlistp");
+        }
+    }
+
+    private void bexpr() {
+        switch (look.tag) {
+            case Tag.RELOP:
+                match(Tag.RELOP);
+                expr();
+                expr();
+                break;
+            default:
+                error("bexpr");
+        }
+    }
 
     private void expr() {
         switch (look.tag) {
-            case '(':
+            case '+':
+                match('+');
+                match('(');
+                exprlist();
+                match(')');
+                break;
+            case '-':
+                match('-');
+                expr();
+                expr();
+                break;
+            case '*':
+                match('*');
+                match('(');
+                exprlist();
+                match(')');
+                break;
+            case '/':
+                match('/');
+                expr();
+                expr();
+                break;
             case Tag.NUM:
-                term();
-                exprp();
+                match(Tag.NUM);
+                break;
+            case Tag.ID:
+                match(Tag.ID);
                 break;
             default:
                 error("expr");
         }
     }
 
-    private void exprp() {
+    private void exprlist() {
         switch (look.tag) {
-            case '+': // <exprp> -> + <term> <exprp>
-                match(Token.PLUS);
-                term();
-                exprp();
-                break;
-            case '-': // <exprp> -> - <term> <exprp>
-                match(Token.MINUS);
-                term();
-                exprp();
-                break;
-            default: // <exprp> -> ε
-                break;
-        }
-    }
-
-    private void term() {
-        switch (look.tag) {
-            case '(':
+            case '+':
+            case '-':
+            case '*':
+            case '/':
             case Tag.NUM:
-                fact();
-                termp();
-                break;
-            default:
-                error("term");
-        }
-    }
-
-    private void termp() {
-        switch (look.tag) {
-            case '*': // <termp> -> * <fact> <termp>
-                match(Token.MULT);
-                term();
-                exprp();
-                break;
-            case '/': // <termp> -> / <fact> <termp>
-                match(Token.DIV);
-                term();
-                exprp();
-                break;
-            default: // <termp> -> ε
-                break;
-        }
-    }
-
-    private void fact() {
-        switch (look.tag) {
-            case '(':
-                match('(');
+            case Tag.ID:
                 expr();
-                match(')');
-                break;
-            case Tag.NUM:
-                match(Tag.NUM);
+                exprlistp();
                 break;
             default:
-                error("fact");
+                error("exprlist");
+        }
+    }
+
+    private void exprlistp() {
+        switch (look.tag) {
+            case ',':
+                match(',');
+                expr();
+                exprlistp();
                 break;
+            case ')':
+                break;
+            default:
+                error("exprlistp");
         }
     }
 
