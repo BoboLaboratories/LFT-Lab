@@ -47,8 +47,7 @@ public final class Parser {
                 error("start");
         }
     }
-
-
+    
     private void expr() {
         switch (look.tag) {
             case '(':
