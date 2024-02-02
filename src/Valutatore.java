@@ -18,12 +18,19 @@ public final class Valutatore {
         System.out.println("token = " + look);
     }
 
-    private Error error(String message) {
-        return new Error("near line " + lexer.getLine() + ": " + message);
-    }
-
-    private void match(Token token) {
-        match(token.tag);
+    private SyntaxError error(String variable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("unexpected token <");
+        sb.append(look.tag == -1 ? "EOF" : look.tag);
+        if (look.getLexeme() != null && !look.getLexeme().isEmpty()) {
+            sb.append(", ");
+            sb.append(look.getLexeme());
+        }
+        sb.append("> parsing <");
+        sb.append(variable);
+        sb.append("> near line ");
+        sb.append(lexer.getLine());
+        return new SyntaxError(sb.toString());
     }
 
     private void match(int tag) {
@@ -32,7 +39,7 @@ public final class Valutatore {
                 move();
             }
         } else {
-            throw error("syntax error");
+            throw error(Thread.currentThread().getStackTrace()[2].getMethodName());
         }
     }
 
@@ -67,12 +74,12 @@ public final class Valutatore {
         int val, termVal;
         switch (look.tag) {
             case '+': // <exprp> -> + <term> <exprp>
-                match(Token.PLUS);
+                match('+');
                 termVal = term();
                 val = exprp(i + termVal);
                 break;
             case '-': // <exprp> -> - <term> <exprp>
-                match(Token.MINUS);
+                match('-');
                 termVal = term();
                 val = exprp(i - termVal);
                 break;
@@ -101,12 +108,12 @@ public final class Valutatore {
         int val, factVal;
         switch (look.tag) {
             case '*': // <termp> -> * <fact> <termp>
-                match(Token.MULT);
+                match('*');
                 factVal = fact();
                 val = termp(i * factVal);
                 break;
             case '/': // <termp> -> / <fact> <termp>
-                match(Token.DIV);
+                match('/');
                 factVal = fact();
                 val = termp(i / factVal);
                 break;
@@ -143,6 +150,8 @@ public final class Valutatore {
             valutatore.start();
             System.out.println("Input OK");
             br.close();
+        } catch (SyntaxError e) {
+            System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
