@@ -1,6 +1,6 @@
 read(x, y, z);
 
-if (> assign y z)
+if (> y z)
     if (< x z)
         print(x)
     else

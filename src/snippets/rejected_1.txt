@@ -1,0 +1,7 @@
+read(x, y);
+
+if (> x y y)
+    print(x)
+else
+    print(y)
+end

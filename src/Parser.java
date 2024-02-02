@@ -21,7 +21,7 @@ public final class Parser {
     private void error(String variable) {
         StringBuilder sb = new StringBuilder();
         sb.append("unexpected token <");
-        sb.append(look.tag);
+        sb.append(look.tag == -1 ? "EOF" : look.tag);
         if (look.getLexeme() != null && !look.getLexeme().isEmpty()) {
             sb.append(", ");
             sb.append(look.getLexeme());
@@ -39,7 +39,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            error(Thread.currentThread().getStackTrace()[2].getMethodName());
         }
     }
 
