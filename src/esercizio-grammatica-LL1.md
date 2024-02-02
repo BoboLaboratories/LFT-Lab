@@ -168,7 +168,7 @@ Dati gli insiemi guida non LL(1) della grammatica per `if`:
 | GUIDA$(\langle stat \rangle \rightarrow$ `if` `(` $\langle bexpr \rangle$ `)` $\langle stat \rangle$ `end`)                                                          | { `if` }                                                                  |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------+
 
-| Fattorizzando la parte \underline{non} comune ad ambo le produzioni introducendo una variabile $\langle statc \rangle$,
+| Fattorizzando la parte \underline{non} comune ad ambo le produzioni introducendo una variabile $\langle statp \rangle$,
 | otteniamo un nuovo insieme guida per $\langle stat \rangle$ che risulta essere LL(1):
 
 
