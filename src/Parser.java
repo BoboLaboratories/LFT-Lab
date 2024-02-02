@@ -18,8 +18,19 @@ public final class Parser {
         System.out.println("token = " + look);
     }
 
-    private void error(String message) {
-        throw new Error("near line " + lexer.getLine() + ": " + message);
+    private void error(String variable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("unexpected token <");
+        sb.append(look.tag);
+        if (look.getLexeme() != null && !look.getLexeme().isEmpty()) {
+            sb.append(", ");
+            sb.append(look.getLexeme());
+        }
+        sb.append("> parsing <");
+        sb.append(variable);
+        sb.append("> near line ");
+        sb.append(lexer.getLine());
+        throw new SyntaxError(sb.toString());
     }
 
     private void match(int tag) {
@@ -28,7 +39,7 @@ public final class Parser {
                 move();
             }
         } else {
-            error("syntax error, expected tag: " + tag);
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
         }
     }
 
@@ -300,9 +311,11 @@ public final class Parser {
             parser.start();
             System.out.println("Input OK");
             br.close();
+        } catch (SyntaxError e) {
+            System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
 }

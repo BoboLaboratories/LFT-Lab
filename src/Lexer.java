@@ -1,6 +1,6 @@
 import java.io.*;
 
-public class Lexer {
+public final class Lexer {
 
     private static final char EOF = (char) -1;
 
@@ -21,9 +21,9 @@ public class Lexer {
         return token;
     }
 
-    private Token error(char prev) {
-        System.err.println("Erroneous character after " + prev + " : " + peek);
-        return null;
+    private Token erroneousChar(char prev) {
+        String tmp = (peek == EOF) ? "EOF" : Character.toString(peek);
+        throw new SyntaxError("erroneous character '" + tmp + "' after '" + prev + "'");
     }
 
     public Token scan(BufferedReader br) {
@@ -58,7 +58,7 @@ public class Lexer {
 
             // init
             case ':':
-                return (readChar(br) == '=') ? reset(Word.INIT) : error(':');
+                return (readChar(br) == '=') ? reset(Word.INIT) : erroneousChar(':');
 
             // math operators + comments
             case '+':
@@ -80,7 +80,7 @@ public class Lexer {
                                 readChar(br);
                             } while (peek != '*' && peek != EOF);
                             if (peek == EOF) {
-                                return error(EOF);
+                                throw new SyntaxError("unclosed multi-line before end of file");
                             }
                             readChar(br); // consumes '*'
                         }
@@ -90,18 +90,18 @@ public class Lexer {
                         return Token.DIV;
                 }
 
-            // boolean operators
+                // boolean operators
             case '!':
                 return reset(Token.NOT);
             case '&':
-                return (readChar(br) == '&') ? reset(Word.AND) : error('&');
+                return (readChar(br) == '&') ? reset(Word.AND) : erroneousChar('&');
             case '|':
-                return (readChar(br) == '|') ? reset(Word.OR) : error('|');
+                return (readChar(br) == '|') ? reset(Word.OR) : erroneousChar('|');
 
 
             // relational operations
             case '=':
-                return (readChar(br) == '=') ? reset(Word.EQ) : error('=');
+                return (readChar(br) == '=') ? reset(Word.EQ) : erroneousChar('=');
             case '>':
                 if (readChar(br) == '=') {
                     return reset(Word.GE);
@@ -118,7 +118,7 @@ public class Lexer {
                         return Word.LT;
                 }
 
-            // EOF
+                // EOF
             case EOF:
                 return new Token(Tag.EOF);
 
@@ -135,33 +135,51 @@ public class Lexer {
 
                     String lexeme = sb.toString();
                     if (!isAccepted) {
-                        System.err.println("Erroneous char sequence " + lexeme);
-                        return null;
+                        throw new SyntaxError("erroneous char sequence " + lexeme);
                     }
 
                     switch (lexeme) {
-                        case "assign": return Word.ASSIGN;
-                        case "begin":  return Word.BEGIN;
-                        case "print":  return Word.PRINT;
-                        case "else":   return Word.ELSETOK;
-                        case "read":   return Word.READ;
-                        case "for":    return Word.FORTOK;
-                        case "end":    return Word.END;
-                        case "to":     return Word.TO;
-                        case "if":     return Word.IFTOK;
-                        case "do":     return Word.DOTOK;
-                        default:       return new Word(Tag.ID, lexeme);
+                        case "assign":
+                            return Word.ASSIGN;
+                        case "begin":
+                            return Word.BEGIN;
+                        case "print":
+                            return Word.PRINT;
+                        case "else":
+                            return Word.ELSETOK;
+                        case "read":
+                            return Word.READ;
+                        case "for":
+                            return Word.FORTOK;
+                        case "end":
+                            return Word.END;
+                        case "to":
+                            return Word.TO;
+                        case "if":
+                            return Word.IFTOK;
+                        case "do":
+                            return Word.DOTOK;
+                        default:
+                            return new Word(Tag.ID, lexeme);
                     }
                 } else if (Character.isDigit(peek)) {
-                    do {
-                        sb.append(peek);
+                    if (peek == '0') {
                         readChar(br);
-                    } while (Character.isDigit(peek));
+                        if (Character.isDigit(peek)) {
+                            erroneousChar('0');
+                        } else {
+                            sb.append('0');
+                        }
+                    } else {
+                        do {
+                            sb.append(peek);
+                            readChar(br);
+                        } while (Character.isDigit(peek));
+                    }
                     String lexeme = sb.toString();
                     return new NumberTok(lexeme);
                 } else {
-                    System.err.println("Erroneous character: " + peek);
-                    return null;
+                    throw new SyntaxError("erroneous character '" + peek + "'");
                 }
         }
     }
