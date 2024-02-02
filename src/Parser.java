@@ -18,8 +18,8 @@ public final class Parser {
         System.out.println("token = " + look);
     }
 
-    private void error(String message) {
-        throw new Error("near line " + lexer.getLine() + ": " + message);
+    private void error(String variable) {
+        throw new SyntaxError("parsing <" + variable + "> near line " + lexer.getLine());
     }
 
     private void match(Token token) {
@@ -130,6 +130,8 @@ public final class Parser {
             parser.start();
             System.out.println("Input OK");
             br.close();
+        } catch (SyntaxError e) {
+            System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
