@@ -1,0 +1,13 @@
+read(nth);
+
+assign [0 to prev];
+assign [1 to curr];
+
+for (i := 1; < i nth) do {
+    assign [prev to prev_prev];
+    assign [curr to prev];
+    assign [+(prev_prev, prev) to curr];
+    assign [+(i, 1) to i]
+};
+
+print(curr)
