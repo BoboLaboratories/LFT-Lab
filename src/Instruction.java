@@ -45,7 +45,7 @@ public final class Instruction {
                 code += "L" + operand + ":\n";
                 break;
             case INVOKESTATIC:
-                code += opCode.name().toLowerCase();
+                code += "    " + opCode.name().toLowerCase();
                 if (operand == 1) {
                     code += " Output/print(I)V\n";
                 } else {

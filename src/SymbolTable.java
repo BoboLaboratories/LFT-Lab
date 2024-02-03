@@ -13,6 +13,11 @@ public final class SymbolTable {
         return address - 1;
     }
 
+    public int lookupOrInsert(String symbol) {
+        offsetMap.putIfAbsent(symbol, address++);
+        return offsetMap.get(symbol);
+    }
+
     public int lookup(String symbol) {
 //        for (Map.Entry<String, Integer> entry : offsetMap.entrySet()) {
 //            System.out.println(entry.getKey() + ": " + entry.getValue());

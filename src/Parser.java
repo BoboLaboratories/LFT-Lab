@@ -116,7 +116,7 @@ public final class Parser {
             case Tag.PRINT:
                 match(Tag.PRINT);
                 match('(');
-                exprlist();
+                exprlist(() -> code.emit(OpCode.INVOKESTATIC, 1));
                 match(')');
                 break;
             case Tag.READ:
@@ -274,7 +274,7 @@ public final class Parser {
             case '+':
                 match('+');
                 match('(');
-                exprlist();
+                exprlist(() -> {});
                 match(')');
                 code.emit(OpCode.IADD);
                 break;
@@ -287,7 +287,7 @@ public final class Parser {
             case '*':
                 match('*');
                 match('(');
-                exprlist();
+                exprlist(() -> {});
                 match(')');
                 code.emit(OpCode.IMUL);
                 break;
@@ -313,7 +313,7 @@ public final class Parser {
         }
     }
 
-    private void exprlist() {
+    private void exprlist(Runnable emit) {
         switch (look.tag) {
             case '+':
             case '-':
@@ -322,19 +322,21 @@ public final class Parser {
             case Tag.NUM:
             case Tag.ID:
                 expr();
-                exprlistp();
+                emit.run();
+                exprlistp(emit);
                 break;
             default:
                 error("exprlist");
         }
     }
 
-    private void exprlistp() {
+    private void exprlistp(Runnable emit) {
         switch (look.tag) {
             case ',':
                 match(',');
                 expr();
-                exprlistp();
+                emit.run();
+                exprlistp(emit);
                 break;
             case ')':
                 break;
@@ -344,7 +346,7 @@ public final class Parser {
     }
 
     private void emitIdentifier(String identifier, boolean isStore) {
-        int address = isStore ? symbols.insert(identifier) : symbols.lookup(identifier);
+        int address = isStore ? symbols.lookupOrInsert(identifier) : symbols.lookup(identifier);
         code.emit(isStore ? OpCode.ISTORE : OpCode.ILOAD, address);
     }
 
