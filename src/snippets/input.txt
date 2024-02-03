@@ -1,0 +1,3 @@
+assign [0 to x] [1 to y];
+
+print(0, *(2, 3, 4, 2), x, y)

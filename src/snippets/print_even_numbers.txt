@@ -1,0 +1,19 @@
+read(i);
+
+assign [2 to d];
+
+for (>= i 0) do {
+    assign [i to r];
+    assign [0 to q];
+
+    for (>= r d) do {
+        assign [- r d to r];
+        assign [+(q, 1)  to q]
+    };
+
+    if (== r 0)
+        print(i)
+    end;
+
+    assign [- i 1 to i]
+}

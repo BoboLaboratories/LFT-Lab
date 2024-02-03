@@ -10,11 +10,11 @@ public final class Parser {
     private Token look;
 
     enum Op {
-        NOOP,
-        LOAD,
         READ,
         ASSIGN,
-        PRINT
+        PRINT,
+        ADD,
+        MUL
     };
 
     private Op op;
@@ -90,7 +90,6 @@ public final class Parser {
             case '{':
                 int statNext = code.newLabel();
                 stat(statNext);
-                code.emit(OpCode.GOTO, statNext);
                 code.emitLabel(statNext);
                 statlistp(next);
                 break;
@@ -120,8 +119,11 @@ public final class Parser {
     private void stat(int next) {
         switch (look.tag) {
             case Tag.ASSIGN:
+                op = Op.ASSIGN;
                 match(Tag.ASSIGN);
                 assignlist();
+                code.emit(OpCode.GOTO, next);
+                op = null;
                 break;
             case Tag.PRINT:
                 op = Op.PRINT;
@@ -129,7 +131,8 @@ public final class Parser {
                 match('(');
                 exprlist();
                 match(')');
-                op = Op.PRINT;
+                code.emit(OpCode.GOTO, next);
+                op = null;
                 break;
             case Tag.READ:
                 op = Op.READ;
@@ -137,26 +140,37 @@ public final class Parser {
                 match('(');
                 idlist();
                 match(')');
+                code.emit(OpCode.GOTO, next);
                 op = null;
                 break;
-            case Tag.FOR:
+            case Tag.FOR: {
+                int trueLabel = code.newLabel();
+                int forLabel = code.newLabel();
                 match(Tag.FOR);
                 match('(');
                 statc();
-                bexpr();
+                code.emitLabel(forLabel);
+                bexpr(trueLabel, next);
                 match(')');
                 match(Tag.DO);
-                stat(next);
+                code.emitLabel(trueLabel);
+                stat(forLabel);
                 break;
-            case Tag.IF:
+            }
+            case Tag.IF: {
+                int trueLabel = code.newLabel();
+                int falseLabel = code.newLabel();
                 match(Tag.IF);
                 match('(');
-                bexpr();
+                bexpr(trueLabel, falseLabel);
                 match(')');
+                code.emitLabel(trueLabel);
                 stat(next);
-                statp();
+                code.emitLabel(falseLabel);
+                statp(next);
                 match(Tag.END);
                 break;
+            }
             case '{':
                 match('{');
                 statlist(next);
@@ -170,9 +184,12 @@ public final class Parser {
     private void statc() {
         switch (look.tag) {
             case Tag.ID:
+                String identifier = look.getLexeme();
+                int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
                 match(Tag.INIT);
                 expr();
+                code.emit(OpCode.ISTORE, address);
                 match(';');
                 break;
             case Tag.RELOP:
@@ -182,11 +199,11 @@ public final class Parser {
         }
     }
 
-    private void statp() {
+    private void statp(int next) {
         switch (look.tag) {
             case Tag.ELSE:
                 match(Tag.ELSE);
-                stat(-1);
+                stat(next);
                 break;
             case Tag.END:
                 break;
@@ -198,14 +215,12 @@ public final class Parser {
     private void assignlist() {
         switch (look.tag) {
             case '[':
-                op = Op.ASSIGN;
                 match('[');
                 expr();
                 match(Tag.TO);
                 idlist();
                 match(']');
                 assignlistp();
-                op = null;
                 break;
             default:
                 error("assignlist");
@@ -236,12 +251,12 @@ public final class Parser {
     private void idlist() {
         switch (look.tag) {
             case Tag.ID:
-                // reserve identifier so that order is kept, then match it
+                // reserve variable identifier so that order is kept, then match it
                 String identifier = look.getLexeme();
                 int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
 
-                // make idlistp inherit identifier
+                // make idlistp inherit variable address
                 idlistp(address);
                 break;
             default:
@@ -254,13 +269,15 @@ public final class Parser {
             case ',':
                 match(',');
 
-                // reserve identifier so that order is kept, then match it
+                // reserve variable identifier so that order is kept, then match it
                 String identifier = look.getLexeme();
                 int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
 
+                // emit actual code for the operation this idlist(p) refers to
                 emitIdlistCode(prevAddress, false);
 
+                // make idlistp inherit variable address
                 idlistp(address);
                 break;
             case ')':
@@ -283,15 +300,18 @@ public final class Parser {
                 code.emit(OpCode.INVOKESTATIC, 1);
                 break;
             case ASSIGN:
+                // dup the last entry on the stack so that we can perform
+                // multiple assigns in a stack efficient manner
                 if (!isLast) {
                     code.emit(OpCode.DUP);
                 }
+                // assign the last dup'ed stack value
                 code.emit(OpCode.ISTORE, address);
                 break;
         }
     }
 
-    private void bexpr() {
+    private void bexpr(int trueLabel, int falseLabel) {
         switch (look.tag) {
             case Tag.RELOP:
                 Word relop = (Word) look;
@@ -299,13 +319,14 @@ public final class Parser {
                 expr();
                 expr();
                 switch (relop.getLexeme()) {
-                    case "<":  code.emit(OpCode.IF_ICMPLT); break;
-                    case ">":  code.emit(OpCode.IF_ICMPGT); break;
-                    case "<=": code.emit(OpCode.IF_ICMPLE); break;
-                    case ">=": code.emit(OpCode.IF_ICMPGE); break;
-                    case "==": code.emit(OpCode.IF_ICMPEQ); break;
-                    case "<>": code.emit(OpCode.IF_ICMPNE); break;
+                    case "<":  code.emit(OpCode.IF_ICMPLT, trueLabel); break;
+                    case ">":  code.emit(OpCode.IF_ICMPGT, trueLabel); break;
+                    case "<=": code.emit(OpCode.IF_ICMPLE, trueLabel); break;
+                    case ">=": code.emit(OpCode.IF_ICMPGE, trueLabel); break;
+                    case "==": code.emit(OpCode.IF_ICMPEQ, trueLabel); break;
+                    case "<>": code.emit(OpCode.IF_ICMPNE, trueLabel); break;
                 }
+                code.emit(OpCode.GOTO, falseLabel);
                 break;
             default:
                 error("bexpr");
@@ -315,71 +336,63 @@ public final class Parser {
     private void expr() {
         Op opBak;
         switch (look.tag) {
-            case '+':
+            case '+': {
                 opBak = op;
-                op = Op.NOOP;
+                op = Op.ADD;
                 match('+');
                 match('(');
                 exprlist();
                 match(')');
-                code.emit(OpCode.IADD);
-                if ((op = opBak) == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
+                op = opBak;
                 break;
-            case '-':
+            }
+            case '-': {
                 opBak = op;
-                op = Op.NOOP;
+                op = null;
                 match('-');
                 expr();
                 expr();
                 code.emit(OpCode.ISUB);
-                if ((op = opBak) == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
+                op = opBak;
                 break;
-            case '*':
+            }
+            case '*': {
                 opBak = op;
-                op = Op.NOOP;
+                op = Op.MUL;
                 match('*');
                 match('(');
                 exprlist();
                 match(')');
-                code.emit(OpCode.IMUL);
-                if ((op = opBak) == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
+                op = opBak;
                 break;
+            }
             case '/':
                 opBak = op;
-                op = Op.NOOP;
+                op = null;
                 match('/');
                 expr();
                 expr();
                 code.emit(OpCode.IDIV);
-                if ((op = opBak) == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
+                op = opBak;
                 break;
             case Tag.NUM:
                 int operand = Integer.parseInt(look.getLexeme());
                 code.emit(OpCode.LDC, operand);
                 match(Tag.NUM);
-                if (op == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
                 break;
             case Tag.ID:
                 String identifier = look.getLexeme();
                 int address = symbols.lookup(identifier);
                 code.emit(OpCode.ILOAD, address);
                 match(Tag.ID);
-                if (op == Op.PRINT) {
-                    code.emit(OpCode.INVOKESTATIC, 1);
-                }
                 break;
-            default:
+            default: {
                 error("expr");
+            }
+        }
+
+        if (op == Op.PRINT) {
+            code.emit(OpCode.INVOKESTATIC, 1);
         }
     }
 
@@ -404,6 +417,16 @@ public final class Parser {
             case ',':
                 match(',');
                 expr();
+                switch (op) {
+                    case ADD:
+                        code.emit(OpCode.IADD);
+                        break;
+                    case MUL:
+                        code.emit(OpCode.IMUL);
+                        break;
+                    default:
+                        break;
+                }
                 exprlistp();
                 break;
             case ')':
