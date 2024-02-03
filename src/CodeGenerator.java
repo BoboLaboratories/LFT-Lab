@@ -27,7 +27,7 @@ public final class CodeGenerator {
         PrintWriter out = new PrintWriter(new FileWriter("Output.j"));
         StringBuilder sb = new StringBuilder();
         sb.append(HEADER);
-        while (instructions.isEmpty()) {
+        while (!instructions.isEmpty()) {
             Instruction instruction = instructions.remove();
             sb.append(instruction.toJasmin());
         }

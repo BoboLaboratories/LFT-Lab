@@ -4,15 +4,23 @@ public final class SymbolTable {
 
     private final Map<String, Integer> offsetMap = new HashMap<>();
 
-    public void insert(String symbol, int address) {
-        if (!offsetMap.containsValue(address)) {
-            offsetMap.put(symbol, address);
-        } else
-            throw new IllegalArgumentException("Reference to a memory location already occupied by another variable");
+    private int address = 0;
+
+    public int insert(String symbol) {
+        if (!offsetMap.containsKey(symbol)) {
+            offsetMap.put(symbol, address++);
+        }
+        return address - 1;
     }
 
-    public int lookupAddress(String symbol) {
-        return offsetMap.getOrDefault(symbol, -1);
+    public int lookup(String symbol) {
+//        for (Map.Entry<String, Integer> entry : offsetMap.entrySet()) {
+//            System.out.println(entry.getKey() + ": " + entry.getValue());
+//        }
+        if (!offsetMap.containsKey(symbol)) {
+            throw new IllegalArgumentException("Could not find address for symbol: " + symbol);
+        }
+        return offsetMap.get(symbol);
     }
 
 }

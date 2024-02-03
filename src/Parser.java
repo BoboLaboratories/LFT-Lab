@@ -7,7 +7,6 @@ public final class Parser {
     private final BufferedReader br;
     private final Lexer lexer;
 
-    private int count = 0;
     private Token look;
 
     public Parser(Lexer lexer, BufferedReader br) {
@@ -48,7 +47,7 @@ public final class Parser {
         }
     }
 
-    public void start() {
+    public void prog() {
         switch (look.tag) {
             case Tag.ASSIGN:
             case Tag.PRINT:
@@ -56,15 +55,22 @@ public final class Parser {
             case Tag.FOR:
             case Tag.IF:
             case '{':
-                statlist();
+                int next = code.newLabel();
+                statlist(next);
+                code.emitLabel(next);
                 match(Tag.EOF);
+                try {
+                    code.toJasmin();
+                } catch (IOException e) {
+                    System.out.println("IO error\n");
+                }
                 break;
             default:
                 error("start");
         }
     }
 
-    private void statlist() {
+    private void statlist(int next) {
         switch (look.tag) {
             case Tag.ASSIGN:
             case Tag.PRINT:
@@ -72,30 +78,36 @@ public final class Parser {
             case Tag.FOR:
             case Tag.IF:
             case '{':
-                stat();
-                statlistp();
+                int statNext = code.newLabel();
+                stat(statNext);
+                code.emit(OpCode.GOTO, statNext);
+                code.emitLabel(statNext);
+                statlistp(next);
                 break;
             default:
                 error("statlist");
         }
     }
 
-    private void statlistp() {
+    private void statlistp(int next) {
         switch (look.tag) {
             case ';':
                 match(';');
-                stat();
-                statlistp();
+                int nextListP = code.newLabel();
+                stat(nextListP);
+                code.emitLabel(nextListP);
+                statlistp(next);
                 break;
             case Tag.EOF:
             case '}':
+                code.emit(OpCode.GOTO, next);
                 break;
             default:
                 error("statlistp");
         }
     }
 
-    private void stat() {
+    private void stat(int next) {
         switch (look.tag) {
             case Tag.ASSIGN:
                 match(Tag.ASSIGN);
@@ -110,7 +122,7 @@ public final class Parser {
             case Tag.READ:
                 match(Tag.READ);
                 match('(');
-                idlist();
+                idlist(false);
                 match(')');
                 break;
             case Tag.FOR:
@@ -120,20 +132,20 @@ public final class Parser {
                 bexpr();
                 match(')');
                 match(Tag.DO);
-                stat();
+                stat(next);
                 break;
             case Tag.IF:
                 match(Tag.IF);
                 match('(');
                 bexpr();
                 match(')');
-                stat();
+                stat(next);
                 statp();
                 match(Tag.END);
                 break;
             case '{':
                 match('{');
-                statlist();
+                statlist(next);
                 match('}');
                 break;
             default:
@@ -160,7 +172,7 @@ public final class Parser {
         switch (look.tag) {
             case Tag.ELSE:
                 match(Tag.ELSE);
-                stat();
+                stat(-1);
                 break;
             case Tag.END:
                 break;
@@ -175,7 +187,7 @@ public final class Parser {
                 match('[');
                 expr();
                 match(Tag.TO);
-                idlist();
+                idlist(true);
                 match(']');
                 assignlistp();
                 break;
@@ -190,7 +202,7 @@ public final class Parser {
                 match('[');
                 expr();
                 match(Tag.TO);
-                idlist();
+                idlist(true);
                 match(']');
                 assignlistp();
                 break;
@@ -205,23 +217,28 @@ public final class Parser {
         }
     }
 
-    private void idlist() {
+    private void idlist(boolean isStore) {
         switch (look.tag) {
             case Tag.ID:
+                String identifier = look.getLexeme();
                 match(Tag.ID);
-                idlistp();
+                idlistp(isStore);
+                emitIdentifier(identifier, isStore);
                 break;
             default:
                 error("idlist");
         }
     }
 
-    private void idlistp() {
+    private void idlistp(boolean isStore) {
         switch (look.tag) {
             case ',':
                 match(',');
+                String identifier = look.getLexeme();
                 match(Tag.ID);
-                idlistp();
+                code.emit(OpCode.DUP);
+                idlistp(isStore);
+                emitIdentifier(identifier, isStore);
                 break;
             case ')':
             case ']':
@@ -234,9 +251,18 @@ public final class Parser {
     private void bexpr() {
         switch (look.tag) {
             case Tag.RELOP:
+                Word relop = (Word) look;
                 match(Tag.RELOP);
                 expr();
                 expr();
+                switch (relop.getLexeme()) {
+                    case "<":  code.emit(OpCode.IF_ICMPLT); break;
+                    case ">":  code.emit(OpCode.IF_ICMPGT); break;
+                    case "<=": code.emit(OpCode.IF_ICMPLE); break;
+                    case ">=": code.emit(OpCode.IF_ICMPGE); break;
+                    case "==": code.emit(OpCode.IF_ICMPEQ); break;
+                    case "<>": code.emit(OpCode.IF_ICMPNE); break;
+                }
                 break;
             default:
                 error("bexpr");
@@ -250,27 +276,36 @@ public final class Parser {
                 match('(');
                 exprlist();
                 match(')');
+                code.emit(OpCode.IADD);
                 break;
             case '-':
                 match('-');
                 expr();
                 expr();
+                code.emit(OpCode.ISUB);
                 break;
             case '*':
                 match('*');
                 match('(');
                 exprlist();
                 match(')');
+                code.emit(OpCode.IMUL);
                 break;
             case '/':
                 match('/');
                 expr();
                 expr();
+                code.emit(OpCode.IDIV);
                 break;
             case Tag.NUM:
+                int operand = Integer.parseInt(look.getLexeme());
+                code.emit(OpCode.LDC, operand);
                 match(Tag.NUM);
                 break;
             case Tag.ID:
+                String identifier = look.getLexeme();
+                int address = symbols.lookup(identifier);
+                code.emit(OpCode.ILOAD, address);
                 match(Tag.ID);
                 break;
             default:
@@ -308,12 +343,17 @@ public final class Parser {
         }
     }
 
+    private void emitIdentifier(String identifier, boolean isStore) {
+        int address = isStore ? symbols.insert(identifier) : symbols.lookup(identifier);
+        code.emit(isStore ? OpCode.ISTORE : OpCode.ILOAD, address);
+    }
+
     public static void main(String[] args) {
         Lexer lex = new Lexer();
         try {
             BufferedReader br = new BufferedReader(new FileReader(args[0]));
             Parser parser = new Parser(lex, br);
-            parser.start();
+            parser.prog();
             System.out.println("Input OK");
             br.close();
         } catch (SyntaxError e) {
