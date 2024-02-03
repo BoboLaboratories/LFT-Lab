@@ -12,7 +12,7 @@ public final class Parser {
     enum IdListOp {
         LOAD,
         STORE,
-        READ,
+        READ
     };
 
     private boolean print = false;
@@ -236,10 +236,7 @@ public final class Parser {
     private void idlist() {
         switch (look.tag) {
             case Tag.ID:
-                String identifier = look.getLexeme();
-                match(Tag.ID);
-                idlistp();
-                emitIdentifier(identifier);
+                idlistCommon();
                 break;
             default:
                 error("idlist");
@@ -250,19 +247,48 @@ public final class Parser {
         switch (look.tag) {
             case ',':
                 match(',');
-                String identifier = look.getLexeme();
-                match(Tag.ID);
-                if (idListOp != IdListOp.READ) {
-                    code.emit(OpCode.DUP);
-                }
-                idlistp();
-                emitIdentifier(identifier);
+                idlistCommon();
                 break;
             case ')':
             case ']':
                 break;
             default:
                 error("idlistp");
+        }
+    }
+
+    private void idlistCommon() {
+        String identifier = look.getLexeme();
+        match(Tag.ID);
+        if (idListOp == IdListOp.STORE) {
+            code.emit(OpCode.DUP);
+        } else if (idListOp == IdListOp.READ) {
+            emitIdentifier(identifier);
+        }
+        idlistp();
+        if (print || idListOp == IdListOp.STORE) {
+            emitIdentifier(identifier);
+        }
+    }
+
+    private void emitIdentifier(String identifier) {
+        switch (idListOp) {
+            case LOAD: {
+                int address = symbols.lookup(identifier);
+                code.emit(OpCode.ISTORE, address);
+                break;
+            }
+            case STORE: {
+                int address = symbols.lookupOrInsert(identifier);
+                code.emit(OpCode.ISTORE, address);
+                break;
+            }
+            case READ: {
+                int address = symbols.lookupOrInsert(identifier);
+                code.emit(OpCode.INVOKESTATIC, 0);
+                code.emit(OpCode.ISTORE, address);
+                break;
+            }
         }
     }
 
@@ -347,7 +373,6 @@ public final class Parser {
             case Tag.ID:
                 String identifier = look.getLexeme();
                 int address = symbols.lookup(identifier);
-                System.out.println("Matching ID: " + identifier + " with address: " + address);
                 code.emit(OpCode.ILOAD, address);
                 match(Tag.ID);
                 if (print) {
@@ -387,28 +412,6 @@ public final class Parser {
             default:
                 error("exprlistp");
         }
-    }
-
-    private void emitIdentifier(String identifier) {
-        switch (idListOp) {
-            case LOAD: {
-                int address = symbols.lookup(identifier);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            }
-            case STORE: {
-                int address = symbols.lookupOrInsert(identifier);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            }
-            case READ: {
-                int address = symbols.lookupOrInsert(identifier);
-                code.emit(OpCode.INVOKESTATIC, 0);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            }
-        }
-
     }
 
     public static void main(String[] args) {
