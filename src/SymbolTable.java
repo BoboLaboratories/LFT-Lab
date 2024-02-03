@@ -15,7 +15,8 @@ public final class SymbolTable {
 
     public int lookupOrInsert(String symbol) {
         if (!offsetMap.containsKey(symbol)) {
-            offsetMap.put(symbol, address++);
+            offsetMap.put(symbol, address);
+            address++;
         }
         for (Map.Entry<String, Integer> entry : offsetMap.entrySet()) {
             System.out.println(entry.getKey() + ": " + entry.getValue());

@@ -1,9 +1,21 @@
-assign [0 to x, y, z];
+// assign [0 to x, y /*, z , w*/]  //;
+assign [0 to a, b];
 
+/*assign [+(a, 1) to a];
+assign [+(b, 2) to b];
+assign [+(c, 3) to c];
+assign [+(d, 4) to d];*/
+
+read(a, b);
+
+print(a, b)
+
+
+/*
 read(x1, y1, z1);
 
 assign [+(x, x1) to x];
 assign [+(y, y1) to y];
 assign [+(z, z1) to z];
 
-print(x, y, z)
+print(x, y, z)*/

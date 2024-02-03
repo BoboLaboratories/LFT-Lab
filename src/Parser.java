@@ -9,15 +9,15 @@ public final class Parser {
 
     private Token look;
 
-    enum IdListOp {
+    enum Op {
+        NOOP,
         LOAD,
-        STORE,
-        READ
+        READ,
+        ASSIGN,
+        PRINT
     };
 
-    private boolean print = false;
-
-    private IdListOp idListOp;
+    private Op op;
 
     public Parser(Lexer lexer, BufferedReader br) {
         symbols = new SymbolTable();
@@ -29,7 +29,7 @@ public final class Parser {
 
     private void move() {
         look = lexer.scan(br);
-        System.out.println("token = " + look);
+        // System.out.println("token = " + look);
     }
 
     private void error(String variable) {
@@ -124,20 +124,20 @@ public final class Parser {
                 assignlist();
                 break;
             case Tag.PRINT:
-                print = true;
+                op = Op.PRINT;
                 match(Tag.PRINT);
                 match('(');
                 exprlist();
                 match(')');
-                print = false;
+                op = Op.PRINT;
                 break;
             case Tag.READ:
-                idListOp = IdListOp.READ;
+                op = Op.READ;
                 match(Tag.READ);
                 match('(');
                 idlist();
                 match(')');
-                idListOp = null;
+                op = null;
                 break;
             case Tag.FOR:
                 match(Tag.FOR);
@@ -198,14 +198,14 @@ public final class Parser {
     private void assignlist() {
         switch (look.tag) {
             case '[':
-                idListOp = IdListOp.STORE;
+                op = Op.ASSIGN;
                 match('[');
                 expr();
                 match(Tag.TO);
                 idlist();
                 match(']');
                 assignlistp();
-                idListOp = null;
+                op = null;
                 break;
             default:
                 error("assignlist");
@@ -236,59 +236,58 @@ public final class Parser {
     private void idlist() {
         switch (look.tag) {
             case Tag.ID:
-                idlistCommon();
+                // reserve identifier so that order is kept, then match it
+                String identifier = look.getLexeme();
+                int address = symbols.lookupOrInsert(identifier);
+                match(Tag.ID);
+
+                // make idlistp inherit identifier
+                idlistp(address);
                 break;
             default:
                 error("idlist");
         }
     }
 
-    private void idlistp() {
+    private void idlistp(int prevAddress) {
         switch (look.tag) {
             case ',':
                 match(',');
-                idlistCommon();
+
+                // reserve identifier so that order is kept, then match it
+                String identifier = look.getLexeme();
+                int address = symbols.lookupOrInsert(identifier);
+                match(Tag.ID);
+
+                emitIdlistCode(prevAddress, false);
+
+                idlistp(address);
                 break;
             case ')':
             case ']':
+                emitIdlistCode(prevAddress, true);
                 break;
             default:
                 error("idlistp");
         }
     }
 
-    private void idlistCommon() {
-        String identifier = look.getLexeme();
-        match(Tag.ID);
-        if (idListOp == IdListOp.STORE) {
-            code.emit(OpCode.DUP);
-        } else if (idListOp == IdListOp.READ) {
-            emitIdentifier(identifier);
-        }
-        idlistp();
-        if (print || idListOp == IdListOp.STORE) {
-            emitIdentifier(identifier);
-        }
-    }
-
-    private void emitIdentifier(String identifier) {
-        switch (idListOp) {
-            case LOAD: {
-                int address = symbols.lookup(identifier);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            }
-            case STORE: {
-                int address = symbols.lookupOrInsert(identifier);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            }
-            case READ: {
-                int address = symbols.lookupOrInsert(identifier);
+    private void emitIdlistCode(int address, boolean isLast) {
+        switch (op) {
+            case READ:
                 code.emit(OpCode.INVOKESTATIC, 0);
                 code.emit(OpCode.ISTORE, address);
                 break;
-            }
+            case PRINT:
+                code.emit(OpCode.ILOAD, address);
+                code.emit(OpCode.INVOKESTATIC, 1);
+                break;
+            case ASSIGN:
+                if (!isLast) {
+                    code.emit(OpCode.DUP);
+                }
+                code.emit(OpCode.ISTORE, address);
+                break;
         }
     }
 
@@ -314,51 +313,51 @@ public final class Parser {
     }
 
     private void expr() {
-        boolean printBak;
+        Op opBak;
         switch (look.tag) {
             case '+':
-                printBak = print;
-                print = false;
+                opBak = op;
+                op = Op.NOOP;
                 match('+');
                 match('(');
                 exprlist();
                 match(')');
                 code.emit(OpCode.IADD);
-                if ((print = printBak)) {
+                if ((op = opBak) == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
             case '-':
-                printBak = print;
-                print = false;
+                opBak = op;
+                op = Op.NOOP;
                 match('-');
                 expr();
                 expr();
                 code.emit(OpCode.ISUB);
-                if ((print = printBak)) {
+                if ((op = opBak) == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
             case '*':
-                printBak = print;
-                print = false;
+                opBak = op;
+                op = Op.NOOP;
                 match('*');
                 match('(');
                 exprlist();
                 match(')');
                 code.emit(OpCode.IMUL);
-                if ((print = printBak)) {
+                if ((op = opBak) == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
             case '/':
-                printBak = print;
-                print = false;
+                opBak = op;
+                op = Op.NOOP;
                 match('/');
                 expr();
                 expr();
                 code.emit(OpCode.IDIV);
-                if ((print = printBak)) {
+                if ((op = opBak) == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
@@ -366,7 +365,7 @@ public final class Parser {
                 int operand = Integer.parseInt(look.getLexeme());
                 code.emit(OpCode.LDC, operand);
                 match(Tag.NUM);
-                if (print) {
+                if (op == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
@@ -375,7 +374,7 @@ public final class Parser {
                 int address = symbols.lookup(identifier);
                 code.emit(OpCode.ILOAD, address);
                 match(Tag.ID);
-                if (print) {
+                if (op == Op.PRINT) {
                     code.emit(OpCode.INVOKESTATIC, 1);
                 }
                 break;
