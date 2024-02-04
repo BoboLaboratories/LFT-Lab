@@ -15,6 +15,29 @@ public final class CodeGenerator {
         instructions.add(new Instruction(opCode, operand));
     }
 
+    public void emitOpIfIn(Translator.Op op, Translator.Op... ops) {
+        emitOpIfIn(op, -1, ops);
+    }
+
+    /*
+     * Definiamo la funzione emitOpIfIn(e, p, S), i cui argomenti sono:
+     *   - e ∈ Translator.Op, un emettitore di codice
+     *   - p ∈ int, un argomento da passare a op
+     *   - S ⊆ Translator.Op, un insieme di emettitori di codici
+     *
+     * ∀ x ∈ S, x(p) ⟺ (x = e) ∨ ((e = ASSIGN) ∧ (x = ASSIGN_LAST))
+     *
+     * x(p) ⟺ e ∈ S ∨ ((e = ASSIGN) ∧ (x = ASSIGN_LAST))
+     *
+     */
+    public void emitOpIfIn(Translator.Op op, int operand, Translator.Op... ops) {
+        for (Translator.Op operation : ops) {
+            if (op == operation || (op == Translator.Op.ASSIGN && operation == Translator.Op.ASSIGN_LAST)) {
+                operation.accept(this, operand);
+            }
+        }
+    }
+
     public void emitLabel(int operand) {
         emit(OpCode.LABEL, operand);
     }

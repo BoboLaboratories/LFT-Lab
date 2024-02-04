@@ -1,5 +1,7 @@
 public final class Instruction {
 
+    private static final String SPACING = "    ";
+
     private final OpCode opCode;
     private final int operand;
 
@@ -24,12 +26,12 @@ public final class Instruction {
             case ISUB:
             case INEG:
             case IAND:
-                code += "    " + opCode.name().toLowerCase() + "\n";
+                code += SPACING + opCode.name().toLowerCase() + "\n";
                 break;
             case LDC:
             case ILOAD:
             case ISTORE:
-                code += "    " + opCode.name().toLowerCase() + " " + operand + "\n";
+                code += SPACING + opCode.name().toLowerCase() + " " + operand + "\n";
                 break;
             case IFNE:
             case GOTO:
@@ -39,13 +41,13 @@ public final class Instruction {
             case IF_ICMPNE:
             case IF_ICMPGE:
             case IF_ICMPGT:
-                code += "    " + opCode.name().toLowerCase() + " L" + operand + "\n";
+                code += SPACING + opCode.name().toLowerCase() + " L" + operand + "\n";
                 break;
             case LABEL:
                 code += "L" + operand + ":\n";
                 break;
             case INVOKESTATIC:
-                code += "    " + opCode.name().toLowerCase();
+                code += SPACING + opCode.name().toLowerCase();
                 if (operand == 1) {
                     code += " Output/print(I)V\n";
                 } else {

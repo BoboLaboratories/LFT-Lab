@@ -1,6 +1,7 @@
 import java.io.*;
+import java.util.function.BiConsumer;
 
-public final class Parser {
+public final class Translator {
 
     private final SymbolTable symbols;
     private final CodeGenerator code;
@@ -9,16 +10,7 @@ public final class Parser {
 
     private Token look;
 
-    enum Op {
-        NOOP,
-        READ,
-        ASSIGN,
-        PRINT,
-        ADD,
-        MUL
-    };
-
-    public Parser(Lexer lexer, BufferedReader br) {
+    public Translator(Lexer lexer, BufferedReader br) {
         symbols = new SymbolTable();
         code = new CodeGenerator();
         this.lexer = lexer;
@@ -68,11 +60,6 @@ public final class Parser {
                 statlist(next);
                 code.emitLabel(next);
                 match(Tag.EOF);
-                try {
-                    code.toJasmin();
-                } catch (IOException e) {
-                    System.out.println("IO error\n");
-                }
                 break;
             default:
                 error("start");
@@ -181,7 +168,7 @@ public final class Parser {
                 int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
                 match(Tag.INIT);
-                expr(Op.NOOP);
+                expr();
                 code.emit(OpCode.ISTORE, address);
                 match(';');
                 break;
@@ -241,6 +228,12 @@ public final class Parser {
         }
     }
 
+    /*
+     * <idlist> -> ID
+     *             { idlistp.prevAddress = lookupOrInsert(ID) }
+     *             { idlistp.op = idlist.op }
+     *             <idlistp>
+     */
     private void idlist(Op op) {
         switch (look.tag) {
             case Tag.ID:
@@ -257,60 +250,80 @@ public final class Parser {
         }
     }
 
+    /*
+     * <idlistp> -> , ID
+     *              { emitOpIfIn(idlistp.op, idlistp.prevAddress, { READ, PRINT, ASSIGN }) }
+     *              { idlistp1.prevAddress = lookupOrInsert(ID) }
+     *              { idlistp1.op = idlistp.op }
+     *              <idlistp>
+     *
+     * <idlistp> -> ε
+     *              { emitOpIfIn(idlistp.op, idlistp.prevAddress, { READ, PRINT, ASSIGN_LAST }) }
+     *
+     */
     private void idlistp(Op op, int prevAddress) {
         switch (look.tag) {
             case ',':
                 match(',');
-
                 // reserve variable identifier so that order is kept, then match it
                 String identifier = look.getLexeme();
                 int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
 
                 // emit actual code for the operation this idlist(p) refers to
-                emitIdlistCode(op, prevAddress, false);
+                code.emitOpIfIn(op, prevAddress, Op.READ, Op.PRINT, Op.ASSIGN);
 
                 // make idlistp inherit variable address
                 idlistp(op, address);
                 break;
             case ')':
             case ']':
-                emitIdlistCode(op, prevAddress, true);
+                code.emitOpIfIn(op, prevAddress, Op.READ, Op.PRINT, Op.ASSIGN_LAST);
                 break;
             default:
                 error("idlistp");
         }
     }
 
-    private void emitIdlistCode(Op op, int address, boolean isLast) {
-        switch (op) {
-            case READ:
-                code.emit(OpCode.INVOKESTATIC, 0);
-                code.emit(OpCode.ISTORE, address);
-                break;
-            case PRINT:
-                code.emit(OpCode.ILOAD, address);
-                code.emit(OpCode.INVOKESTATIC, 1);
-                break;
-            case ASSIGN:
-                // dup the last entry on the stack so that we can perform
-                // multiple assigns in a stack efficient manner
-                if (!isLast) {
-                    code.emit(OpCode.DUP);
-                }
-                // assign the last dup'ed stack value
-                code.emit(OpCode.ISTORE, address);
-                break;
-        }
-    }
-
+    /*
+     * <bexpr> -> <  <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IF_ICMPLT, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * <bexpr> -> >  <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IF_CMPGT, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * <bexpr> -> <= <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IF_CMPLE, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * <bexpr> -> >= <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IF_CMPGE, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * <bexpr> -> == <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IF_CMPEQ, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * <bexpr> -> <> <expr1> { expr1.op = NONE }
+     *               <expr2> { expr2.op = NONE }
+     *               { emit(IP_ICMPNE, bexpr.trueLabel) }
+     *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     */
     private void bexpr(int trueLabel, int falseLabel) {
         switch (look.tag) {
             case Tag.RELOP:
                 Word relop = (Word) look;
                 match(Tag.RELOP);
-                expr(null);
-                expr(null);
+                expr();
+                expr();
                 switch (relop.getLexeme()) {
                     case "<":  code.emit(OpCode.IF_ICMPLT, trueLabel); break;
                     case ">":  code.emit(OpCode.IF_ICMPGT, trueLabel); break;
@@ -324,6 +337,10 @@ public final class Parser {
             default:
                 error("bexpr");
         }
+    }
+
+    private void expr() {
+        expr(Op.NONE);
     }
 
     private void expr(Op op) {
@@ -371,9 +388,7 @@ public final class Parser {
             }
         }
 
-        if (op == Op.PRINT) {
-            code.emit(OpCode.INVOKESTATIC, 1);
-        }
+        code.emitOpIfIn(op, Op.PRINT);
     }
 
     private void exprlist(Op op) {
@@ -392,27 +407,75 @@ public final class Parser {
         }
     }
 
+    /*
+     * <exprlistp> -> , <expr>
+     *                { emitOpIfIn(exprlistp.op, { ADD, MUL }) }
+     *                { exprlistp1.op=exprlist.op }
+     *                <exprlistp1>
+     *
+     * <exprlistp> -> ε
+     */
     private void exprlistp(Op op) {
         switch (look.tag) {
+            // <exprlistp> -> , <expr> <exprlistp>
             case ',':
                 match(',');
                 expr(op);
-                switch (op) {
-                    case ADD:
-                        code.emit(OpCode.IADD);
-                        break;
-                    case MUL:
-                        code.emit(OpCode.IMUL);
-                        break;
-                    default:
-                        break;
-                }
+                code.emitOpIfIn(op, Op.ADD, Op.MUL);
                 exprlistp(op);
                 break;
+
+            // <exprlistp> -> ε
             case ')':
                 break;
-            default:
-                error("exprlistp");
+
+            default: error("exprlistp");
+        }
+    }
+
+    public void toJasmin() throws IOException {
+        code.toJasmin();
+    }
+
+    public enum Op implements BiConsumer<CodeGenerator, Integer> {
+
+        NONE((code, address) -> {}),
+
+        READ((code, address) -> {
+            code.emit(OpCode.INVOKESTATIC, 0);
+            code.emit(OpCode.ISTORE, address);
+        }),
+
+        PRINT((code, ignored) ->
+            code.emit(OpCode.INVOKESTATIC, 1)
+        ),
+
+        ASSIGN((code, address) ->  {
+            code.emit(OpCode.DUP);
+            code.emit(OpCode.ISTORE, address);
+        }),
+
+        ASSIGN_LAST((code, address) ->
+            code.emit(OpCode.ISTORE, address)
+        ),
+
+        ADD((code, ignored) ->
+            code.emit(OpCode.IADD)
+        ),
+
+        MUL((code, ignored) ->
+            code.emit(OpCode.IMUL)
+        );
+
+        private final BiConsumer<CodeGenerator, Integer> action;
+
+        Op(BiConsumer<CodeGenerator, Integer> action) {
+            this.action = action;
+        }
+
+        @Override
+        public void accept(CodeGenerator codeGenerator, Integer operand) {
+            action.accept(codeGenerator, operand);
         }
     }
 
@@ -420,11 +483,12 @@ public final class Parser {
         Lexer lex = new Lexer();
         try {
             BufferedReader br = new BufferedReader(new FileReader(args[0]));
-            Parser parser = new Parser(lex, br);
-            parser.prog();
+            Translator translator = new Translator(lex, br);
+            translator.prog();
+            translator.toJasmin();
             System.out.println("Input OK");
             br.close();
-        } catch (SyntaxError e) {
+        } catch (SyntaxError | IllegalArgumentException e) {
             System.err.println(e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
