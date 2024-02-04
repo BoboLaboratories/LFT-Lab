@@ -27,7 +27,7 @@ public final class CodeGenerator {
      *
      * ∀ x ∈ S, x(p) ⟺ (x = e) ∨ ((e = ASSIGN) ∧ (x = ASSIGN_LAST))
      *
-     * x(p) ⟺ e ∈ S ∨ ((e = ASSIGN) ∧ (x = ASSIGN_LAST))
+     * x(p) ⟺ ∃ x ∈ S | (x = e) ∨ ((e = ASSIGN) ∧ (ASSIGN_LAST ∈ S))
      *
      */
     public void emitOpIfIn(Translator.Op op, int operand, Translator.Op... ops) {
