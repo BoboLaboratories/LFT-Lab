@@ -11,8 +11,8 @@ public final class Translator {
     private Token look;
 
     public Translator(Lexer lexer, BufferedReader br) {
-        symbols = new SymbolTable();
-        code = new CodeGenerator();
+        this.symbols = new SymbolTable();
+        this.code = new CodeGenerator();
         this.lexer = lexer;
         this.br = br;
         move();
@@ -149,7 +149,7 @@ public final class Translator {
      *            { emitLabel(bexpr.trueLabel) }
      *            <stat1>
      *
-     * <stat> -> if ( { nyum }
+     * <stat> -> if (
      *           { bexpr.trueLabel = newLabel() }
      *           { bexpr.falseLabel = newLabel() }
      *           <bexpr> )
