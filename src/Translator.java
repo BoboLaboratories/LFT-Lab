@@ -48,6 +48,12 @@ public final class Translator {
         }
     }
 
+    /*
+     * <prog> -> { statlist.next = newLabel() }
+     *           <statlist>
+     *           { emitLabel(statlist.next) }
+     *           EOF
+     */
     public void prog() {
         switch (look.tag) {
             case Tag.ASSIGN:
@@ -66,6 +72,13 @@ public final class Translator {
         }
     }
 
+    /*
+     * <statlist> -> { stat.next = newLabel() }
+     *               <stat>
+     *               { emitLable(stat.next) }
+     *               { statlistp1.next = statlist.next }
+     *               <statlistp>
+     */
     private void statlist(int next) {
         switch (look.tag) {
             case Tag.ASSIGN:
@@ -84,6 +97,17 @@ public final class Translator {
         }
     }
 
+    /*
+     * <statlistp> -> ;
+     *                { stat.next = newLabel() }
+     *                <stat>
+     *                { emitLabel(stat.next) }
+     *                { statlistp1.next = statlistp.next }
+     *                <statlistp>
+     *
+     * <statlistp> -> ε
+     *                { emit(GOTO, statlistp.next }
+     */
     private void statlistp(int next) {
         switch (look.tag) {
             case ';':
@@ -102,6 +126,45 @@ public final class Translator {
         }
     }
 
+    /*
+     * <stat> -> assign <assignlist>
+     *           { emit(GOTO, statp.next) }
+     * 
+     * <stat> -> print (
+     *           { exprlist.op = PRINT }
+     *           <exprlist> )
+     *           { emit(GOTO, statp.next)
+     * 
+     * <stat> -> read (
+     *           { idlist.op = READ }
+     *           <idlist> )
+     *           { emit(GOTO, statp.next }
+     *
+     * <statp> -> for ( <statc>
+     *            { stat1.next = newLabel() }
+     *            { emiteLabel(stat1.next) }
+     *            { bexpr.trueLabel = newLabel() }
+     *            { bexpr.falseLabel = stat.next }
+     *            <bexpr> ) do
+     *            { emitLabel(bexpr.trueLabel) }
+     *            <stat1>
+     *
+     * <stat> -> if ( { nyum }
+     *           { bexpr.trueLabel = newLabel() }
+     *           { bexpr.falseLabel = newLabel() }
+     *           <bexpr> )
+     *           { emitLabel(bexpr.trueLabel) }
+     *           { stat1.next = stat.next }
+     *           <stat1>
+     *           { emitLabel(brexpr.falseLabel) }
+     *           { stat2.next = stat.next }
+     *           <stat2> end
+     *
+     * <stat> -> {
+     *           { statlist.next = stat.next }
+     *           <statlist> }
+     * 
+     */
     private void stat(int next) {
         switch (look.tag) {
             case Tag.ASSIGN:
@@ -161,6 +224,13 @@ public final class Translator {
         }
     }
 
+    /*
+     * <statc> -> ID := <expr>
+     *            { emit(ISTORE, lookupOrInsert(ID) }
+     *            ;
+     *  
+     * <statc> -> ε
+     */
     private void statc() {
         switch (look.tag) {
             case Tag.ID:
@@ -179,6 +249,13 @@ public final class Translator {
         }
     }
 
+    /*
+     *  <statp> -> else 
+     *             { stat.next = statp.next }
+     *             <stat>
+     *
+     * <statp> -> ε
+     */
     private void statp(int next) {
         switch (look.tag) {
             case Tag.ELSE:
@@ -192,6 +269,13 @@ public final class Translator {
         }
     }
 
+    /*
+     * <assignlist> -> [ 
+     *                 { expr.op = ASSIGN }
+     *                 <expr> to 
+     *                 { idlist.op = ASSIGN }
+     *                 <idlist> ] <assignlistp>
+     */
     private void assignlist() {
         switch (look.tag) {
             case '[':
@@ -207,6 +291,15 @@ public final class Translator {
         }
     }
 
+    /*
+     * <assignlistp> -> [
+     *                  { expr.op = ASSIGN }
+     *                  <expr> to
+     *                  { idlist.op = ASSIGN }
+     *                  <idlist> ] <assignlistp>
+     * 
+     * <assignlistp> -> ε
+     */
     private void assignlistp() {
         switch (look.tag) {
             case '[':
@@ -315,7 +408,6 @@ public final class Translator {
      *               <expr2> { expr2.op = NONE }
      *               { emit(IP_ICMPNE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
-     *
      */
     private void bexpr(int trueLabel, int falseLabel) {
         switch (look.tag) {
@@ -343,6 +435,34 @@ public final class Translator {
         expr(Op.NONE);
     }
 
+    /*
+     * <expr> -> + ( 
+     *           { exprlist.op = ADD }
+     *           <exprlist> )
+     * 
+     * <expr> -> -
+     *           { expr1.op = expr.op }
+     *           <expr1>
+     *           { expr2.op = expr.op }
+     *           <expr2>
+     *           { emit(ISUB) }
+     * 
+     * <expr> -> * (
+     *           { exprlist.op = MUL }   
+     *           <exprlist> )
+     * 
+     * <expr> -> / 
+     *           { expr1.op = expr.op }
+     *           <expr1> 
+     *           { expr2.op = expr.op }
+     *           <expr2>
+     *
+     * <expr> -> NUM
+     *           { emit(LDC, NUM) }
+     *
+     * <expr> -> ID
+     *           { emit(ILOAD, lookup(ID)) }
+     */
     private void expr(Op op) {
         switch (look.tag) {
             case '+': {
@@ -391,6 +511,12 @@ public final class Translator {
         code.emitOpIfIn(op, Op.PRINT);
     }
 
+    /*
+     * <exprlist> -> { expr.op = exprlist.op }
+     *               <expr>
+     *               { exprlistp.op = exprlist.op }
+     *               <exprlistp>
+     */
     private void exprlist(Op op) {
         switch (look.tag) {
             case '+':
@@ -408,7 +534,7 @@ public final class Translator {
     }
 
     /*
-     * <exprlistp> -> , <expr>
+     * <exprlistp> -> , <expr> 
      *                { emitOpIfIn(exprlistp.op, { ADD, MUL }) }
      *                { exprlistp1.op=exprlist.op }
      *                <exprlistp1>
