@@ -424,6 +424,8 @@ public final class Translator {
      *               <expr2>
      *               { emit(IP_ICMPNE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
+     *
+     * // TODO SDT && || !
      */
     private void bexpr(int trueLabel, int falseLabel) {
         switch (look.tag) {
@@ -469,29 +471,35 @@ public final class Translator {
      * <expr> -> + ( 
      *           { exprlist.op = ADD }
      *           <exprlist> )
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> -
-     *           { expr1.op = expr.op }
+     *           { expr1.op = NONE }
      *           <expr1>
-     *           { expr2.op = expr.op }
+     *           { expr2.op = NONE }
      *           <expr2>
      *           { emit(ISUB) }
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> * (
      *           { exprlist.op = MUL }   
      *           <exprlist> )
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> / 
-     *           { expr1.op = expr.op }
+     *           { expr1.op = NONE }
      *           <expr1> 
-     *           { expr2.op = expr.op }
+     *           { expr2.op = NONE }
      *           <expr2>
+                 { emitOpIfIn(op, { PRINT }) }
      *
      * <expr> -> NUM
      *           { emit(LDC, NUM) }
+     *           { emitOpIfIn(op, { PRINT }) }
      *
      * <expr> -> ID
      *           { emit(ILOAD, lookup(ID)) }
+     *           { emitOpIfIn(op, { PRINT }) }
      */
     private void expr(Op op) {
         switch (look.tag) {
@@ -504,8 +512,8 @@ public final class Translator {
             }
             case '-': {
                 match('-');
-                expr(op);
-                expr(op);
+                expr(Op.NONE);
+                expr(Op.NONE);
                 code.emit(OpCode.ISUB);
                 break;
             }
@@ -518,8 +526,8 @@ public final class Translator {
             }
             case '/':
                 match('/');
-                expr(op);
-                expr(op);
+                expr(Op.NONE);
+                expr(Op.NONE);
                 code.emit(OpCode.IDIV);
                 break;
             case Tag.NUM:
@@ -648,8 +656,10 @@ public final class Translator {
             br.close();
         } catch (SyntaxError | IllegalArgumentException e) {
             System.err.println(e.getMessage());
+            System.exit(1);
         } catch (IOException e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
 
