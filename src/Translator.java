@@ -244,6 +244,9 @@ public final class Translator {
                 match(';');
                 break;
             case Tag.RELOP:
+            case Tag.AND:
+            case Tag.OR:
+            case '!':
                 break;
             default:
                 error("statc");
@@ -402,6 +405,7 @@ public final class Translator {
      *
      * <bexpr> -> >= { expr1.op = NONE }
      *               <expr1>
+     *               <expr1
      *               { expr2.op = NONE }
      *               <expr2>
      *               { emit(IF_CMPGE, bexpr.trueLabel) }
@@ -437,6 +441,24 @@ public final class Translator {
                     case "<>": code.emit(OpCode.IF_ICMPNE, trueLabel); break;
                 }
                 code.emit(OpCode.GOTO, falseLabel);
+                break;
+            case Tag.AND:
+                match(Tag.AND);
+                int bexpr1True = code.newLabel();
+                bexpr(bexpr1True, falseLabel);
+                code.emitLabel(bexpr1True);
+                bexpr(trueLabel, falseLabel);
+                break;
+            case Tag.OR:
+                match(Tag.OR);
+                int bexpr1False = code.newLabel();
+                bexpr(trueLabel, bexpr1False);
+                code.emitLabel(bexpr1False);
+                bexpr(trueLabel, falseLabel);
+                break;
+            case '!':
+                match('!');
+                bexpr(falseLabel, trueLabel);
                 break;
             default:
                 error("bexpr");
