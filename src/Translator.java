@@ -447,29 +447,35 @@ public final class Translator {
      * <expr> -> + ( 
      *           { exprlist.op = ADD }
      *           <exprlist> )
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> -
-     *           { expr1.op = expr.op }
+     *           { expr1.op = NONE }
      *           <expr1>
-     *           { expr2.op = expr.op }
+     *           { expr2.op = NONE }
      *           <expr2>
      *           { emit(ISUB) }
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> * (
      *           { exprlist.op = MUL }   
      *           <exprlist> )
+     *           { emitOpIfIn(op, { PRINT }) }
      * 
      * <expr> -> / 
-     *           { expr1.op = expr.op }
+     *           { expr1.op = NONE }
      *           <expr1> 
-     *           { expr2.op = expr.op }
+     *           { expr2.op = NONE }
      *           <expr2>
+                 { emitOpIfIn(op, { PRINT }) }
      *
      * <expr> -> NUM
      *           { emit(LDC, NUM) }
+     *           { emitOpIfIn(op, { PRINT }) }
      *
      * <expr> -> ID
      *           { emit(ILOAD, lookup(ID)) }
+     *           { emitOpIfIn(op, { PRINT }) }
      */
     private void expr(Op op) {
         switch (look.tag) {
@@ -482,8 +488,8 @@ public final class Translator {
             }
             case '-': {
                 match('-');
-                expr(op);
-                expr(op);
+                expr(Op.NONE);
+                expr(Op.NONE);
                 code.emit(OpCode.ISUB);
                 break;
             }
@@ -496,8 +502,8 @@ public final class Translator {
             }
             case '/':
                 match('/');
-                expr(op);
-                expr(op);
+                expr(Op.NONE);
+                expr(Op.NONE);
                 code.emit(OpCode.IDIV);
                 break;
             case Tag.NUM:
