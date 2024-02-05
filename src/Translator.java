@@ -128,26 +128,26 @@ public final class Translator {
 
     /*
      * <stat> -> assign <assignlist>
-     *           { emit(GOTO, statp.next) }
+     *           { emit(GOTO, stat.next) }
      * 
      * <stat> -> print (
      *           { exprlist.op = PRINT }
      *           <exprlist> )
-     *           { emit(GOTO, statp.next)
+     *           { emit(GOTO, stat.next)
      * 
      * <stat> -> read (
      *           { idlist.op = READ }
      *           <idlist> )
-     *           { emit(GOTO, statp.next }
+     *           { emit(GOTO, stats.next }
      *
-     * <statp> -> for ( <statc>
-     *            { stat1.next = newLabel() }
-     *            { emiteLabel(stat1.next) }
-     *            { bexpr.trueLabel = newLabel() }
-     *            { bexpr.falseLabel = stat.next }
-     *            <bexpr> ) do
-     *            { emitLabel(bexpr.trueLabel) }
-     *            <stat1>
+     * <stat> -> for ( <statc>
+     *           { stat1.next = newLabel() }
+     *           { emiteLabel(stat1.next) }
+     *           { bexpr.trueLabel = newLabel() }
+     *           { bexpr.falseLabel = stat.next }
+     *           <bexpr> ) do
+     *           { emitLabel(bexpr.trueLabel) }
+     *           <stat1>
      *
      * <stat> -> if (
      *           { bexpr.trueLabel = newLabel() }
@@ -157,13 +157,12 @@ public final class Translator {
      *           { stat1.next = stat.next }
      *           <stat1>
      *           { emitLabel(brexpr.falseLabel) }
-     *           { stat2.next = stat.next }
+     *           { stat2.next = stat.next }IF_ICMPLT
      *           <stat2> end
      *
      * <stat> -> {
      *           { statlist.next = stat.next }
      *           <statlist> }
-     * 
      */
     private void stat(int next) {
         switch (look.tag) {
@@ -225,7 +224,9 @@ public final class Translator {
     }
 
     /*
-     * <statc> -> ID := <expr>
+     * <statc> -> ID :=
+     *            { expr.op = NONE }
+     *            <expr>
      *            { emit(ISTORE, lookupOrInsert(ID) }
      *            ;
      *  
@@ -238,7 +239,7 @@ public final class Translator {
                 int address = symbols.lookupOrInsert(identifier);
                 match(Tag.ID);
                 match(Tag.INIT);
-                expr();
+                expr(Op.NONE);
                 code.emit(OpCode.ISTORE, address);
                 match(';');
                 break;
@@ -250,9 +251,9 @@ public final class Translator {
     }
 
     /*
-     *  <statp> -> else 
-     *             { stat.next = statp.next }
-     *             <stat>
+     * <statp> -> else
+     *            { stat.next = statp.next }
+     *            <stat>
      *
      * <statp> -> ε
      */
@@ -352,7 +353,6 @@ public final class Translator {
      *
      * <idlistp> -> ε
      *              { emitOpIfIn(idlistp.op, idlistp.prevAddress, { READ, PRINT, ASSIGN_LAST }) }
-     *
      */
     private void idlistp(Op op, int prevAddress) {
         switch (look.tag) {
@@ -379,33 +379,45 @@ public final class Translator {
     }
 
     /*
-     * <bexpr> -> <  <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> <  { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IF_ICMPLT, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      *
-     * <bexpr> -> >  <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> >  { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IF_CMPGT, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      *
-     * <bexpr> -> <= <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> <= { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IF_CMPLE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      *
-     * <bexpr> -> >= <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> >= { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IF_CMPGE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      *
-     * <bexpr> -> == <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> == { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IF_CMPEQ, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      *
-     * <bexpr> -> <> <expr1> { expr1.op = NONE }
-     *               <expr2> { expr2.op = NONE }
+     * <bexpr> -> <> { expr1.op = NONE }
+     *               <expr1>
+     *               { expr2.op = NONE }
+     *               <expr2>
      *               { emit(IP_ICMPNE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      */
@@ -414,8 +426,8 @@ public final class Translator {
             case Tag.RELOP:
                 Word relop = (Word) look;
                 match(Tag.RELOP);
-                expr();
-                expr();
+                expr(Op.NONE);
+                expr(Op.NONE);
                 switch (relop.getLexeme()) {
                     case "<":  code.emit(OpCode.IF_ICMPLT, trueLabel); break;
                     case ">":  code.emit(OpCode.IF_ICMPGT, trueLabel); break;
@@ -429,10 +441,6 @@ public final class Translator {
             default:
                 error("bexpr");
         }
-    }
-
-    private void expr() {
-        expr(Op.NONE);
     }
 
     /*
@@ -534,9 +542,11 @@ public final class Translator {
     }
 
     /*
-     * <exprlistp> -> , <expr> 
+     * <exprlistp> -> ,
+     *                { expr.op = exprlist.op }
+     *                <expr>
      *                { emitOpIfIn(exprlistp.op, { ADD, MUL }) }
-     *                { exprlistp1.op=exprlist.op }
+     *                { exprlistp1.op = exprlist.op }
      *                <exprlistp1>
      *
      * <exprlistp> -> ε
