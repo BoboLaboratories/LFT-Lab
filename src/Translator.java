@@ -417,7 +417,7 @@ public final class Translator {
      *               { emit(IP_ICMPNE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      */
-    private void bexpr(int trueLabel) {
+    private void bexpr(int falseLabel) {
         switch (look.tag) {
             case Tag.RELOP:
                 Word relop = (Word) look;
@@ -425,12 +425,12 @@ public final class Translator {
                 expr(Op.NONE);
                 expr(Op.NONE);
                 switch (relop.getLexeme()) {
-                    case "<":  code.emit(OpCode.IF_ICMPGE, trueLabel); break;
-                    case ">":  code.emit(OpCode.IF_ICMPLE, trueLabel); break;
-                    case "<=": code.emit(OpCode.IF_ICMPGT, trueLabel); break;
-                    case ">=": code.emit(OpCode.IF_ICMPLT, trueLabel); break;
-                    case "==": code.emit(OpCode.IF_ICMPNE, trueLabel); break;
-                    case "<>": code.emit(OpCode.IF_ICMPEQ, trueLabel); break;
+                    case "<":  code.emit(OpCode.IF_ICMPGE, falseLabel); break;
+                    case ">":  code.emit(OpCode.IF_ICMPLE, falseLabel); break;
+                    case "<=": code.emit(OpCode.IF_ICMPGT, falseLabel); break;
+                    case ">=": code.emit(OpCode.IF_ICMPLT, falseLabel); break;
+                    case "==": code.emit(OpCode.IF_ICMPNE, falseLabel); break;
+                    case "<>": code.emit(OpCode.IF_ICMPEQ, falseLabel); break;
                 }
                 break;
             default:
