@@ -19,17 +19,6 @@ public final class CodeGenerator {
         emitOpIfIn(op, -1, ops);
     }
 
-    /*
-     * Definiamo la funzione emitOpIfIn(e, p, S), i cui argomenti sono:
-     *   - e ∈ Translator.Op, un emettitore di codice
-     *   - p ∈ int, un argomento da passare a op
-     *   - S ⊆ Translator.Op, un insieme di emettitori di codici
-     *
-     * ∀ x ∈ S, x(p) ⟺ (x = e) ∨ ((e = ASSIGN) ∧ (x = ASSIGN_LAST))
-     *
-     * x(p) ⟺ ∃ x ∈ S | (x = e) ∨ ((e = ASSIGN) ∧ (ASSIGN_LAST ∈ S))
-     *
-     */
     public void emitOpIfIn(Translator.Op op, int operand, Translator.Op... ops) {
         for (Translator.Op operation : ops) {
             if (op == operation || (op == Translator.Op.ASSIGN && operation == Translator.Op.ASSIGN_LAST)) {
