@@ -126,7 +126,7 @@ public final class Translator {
         }
     }
 
-    /*
+    /* TODO update sdt for and if
      * <stat> -> assign <assignlist>
      *           { emit(GOTO, stat.next) }
      * 
@@ -186,27 +186,23 @@ public final class Translator {
                 code.emit(OpCode.GOTO, next);
                 break;
             case Tag.FOR: {
-                int trueLabel = code.newLabel();
                 int forLabel = code.newLabel();
                 match(Tag.FOR);
                 match('(');
                 statc();
                 code.emitLabel(forLabel);
-                bexpr(trueLabel, next);
+                bexpr(next);
                 match(')');
                 match(Tag.DO);
-                code.emitLabel(trueLabel);
                 stat(forLabel);
                 break;
             }
             case Tag.IF: {
-                int trueLabel = code.newLabel();
                 int falseLabel = code.newLabel();
                 match(Tag.IF);
                 match('(');
-                bexpr(trueLabel, falseLabel);
+                bexpr(falseLabel);
                 match(')');
-                code.emitLabel(trueLabel);
                 stat(next);
                 code.emitLabel(falseLabel);
                 statp(next);
@@ -378,7 +374,7 @@ public final class Translator {
         }
     }
 
-    /*
+    /* TODO SDT da updatare
      * <bexpr> -> <  { expr1.op = NONE }
      *               <expr1>
      *               { expr2.op = NONE }
@@ -421,7 +417,7 @@ public final class Translator {
      *               { emit(IP_ICMPNE, bexpr.trueLabel) }
      *               { emit(GOTO, bexpr.falseLabel) }
      */
-    private void bexpr(int trueLabel, int falseLabel) {
+    private void bexpr(int trueLabel) {
         switch (look.tag) {
             case Tag.RELOP:
                 Word relop = (Word) look;
@@ -429,14 +425,13 @@ public final class Translator {
                 expr(Op.NONE);
                 expr(Op.NONE);
                 switch (relop.getLexeme()) {
-                    case "<":  code.emit(OpCode.IF_ICMPLT, trueLabel); break;
-                    case ">":  code.emit(OpCode.IF_ICMPGT, trueLabel); break;
-                    case "<=": code.emit(OpCode.IF_ICMPLE, trueLabel); break;
-                    case ">=": code.emit(OpCode.IF_ICMPGE, trueLabel); break;
-                    case "==": code.emit(OpCode.IF_ICMPEQ, trueLabel); break;
-                    case "<>": code.emit(OpCode.IF_ICMPNE, trueLabel); break;
+                    case "<":  code.emit(OpCode.IF_ICMPGE, trueLabel); break;
+                    case ">":  code.emit(OpCode.IF_ICMPLE, trueLabel); break;
+                    case "<=": code.emit(OpCode.IF_ICMPGT, trueLabel); break;
+                    case ">=": code.emit(OpCode.IF_ICMPLT, trueLabel); break;
+                    case "==": code.emit(OpCode.IF_ICMPNE, trueLabel); break;
+                    case "<>": code.emit(OpCode.IF_ICMPEQ, trueLabel); break;
                 }
-                code.emit(OpCode.GOTO, falseLabel);
                 break;
             default:
                 error("bexpr");
