@@ -1,3 +1,5 @@
+// Print even numbers
+
 read(i);
 
 assign [2 to d];

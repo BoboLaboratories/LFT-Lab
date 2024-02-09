@@ -694,7 +694,6 @@ public final class Translator {
             Translator translator = new Translator(lex, br);
             translator.prog();
             translator.toJasmin();
-            System.out.println("Input OK");
             br.close();
         } catch (SyntaxError | IllegalArgumentException e) {
             System.err.println(e.getMessage());

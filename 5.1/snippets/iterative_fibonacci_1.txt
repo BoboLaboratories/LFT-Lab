@@ -1,3 +1,5 @@
+// Iterative fibonacci v1
+
 read(nth);
 
 assign [0 to prev];

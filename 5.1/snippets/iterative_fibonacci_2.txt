@@ -1,3 +1,5 @@
+// Iterative fibonacci v2
+
 read(k);
 
 assign [0 to m];
