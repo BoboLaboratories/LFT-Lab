@@ -1,7 +1,7 @@
 read(x, y, z);
 
-if (> y z)
-    if (< x z)
+if (> x y)
+    if (> x z)
         print(x)
     else
         print(z)
