@@ -1,0 +1,13 @@
+read(k);
+
+assign [0 to m];
+assign [1 to n];
+
+for (> k 0) do {
+    assign [m to t];
+    assign [n to m];
+    assign [+(t, n) to n];
+    assign [- k 1 to k]
+};
+
+print(m)

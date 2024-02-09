@@ -1,0 +1,13 @@
+read(x, y);
+
+print(1, +(2, 3, 4));
+
+if (< x y) print(x) else print(y) end;
+
+for (z:=x; > z 0) do {
+
+    assign [- z 1 to z];
+
+    print(z)
+
+}

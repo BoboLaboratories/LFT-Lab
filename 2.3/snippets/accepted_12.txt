@@ -1,0 +1,4 @@
+x*/y /* ciao /* come*/ // va? */
+x*/y /* ciao /* come // va? */
+
+// /* *a

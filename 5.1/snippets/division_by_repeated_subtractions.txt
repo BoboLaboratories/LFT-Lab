@@ -1,0 +1,11 @@
+read(n, d);
+
+assign [n to r];
+assign [0 to q];
+
+for (>= r d) do {
+    assign [- r d to r];
+    assign [+(q, 1)  to q]
+};
+
+print(q, r)

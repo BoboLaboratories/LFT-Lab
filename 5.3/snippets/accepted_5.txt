@@ -1,0 +1,4 @@
+for (c := 10; > c 0) do {
+    print(c);
+    assign [- c 1 to c]
+}

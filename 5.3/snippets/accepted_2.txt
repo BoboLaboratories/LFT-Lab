@@ -1,0 +1,4 @@
+assign [10 to x]
+       [20 to y]
+       [30 to z];
+print(+(x,*(y,z)))
