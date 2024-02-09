@@ -35,7 +35,7 @@ public final class Esercizio_1_1 {
             }
         }
 
-        return state != -1 & state != 3;
+        return state >= 0 && state <= 2;
     }
 
     public static void main(String[] args) {
