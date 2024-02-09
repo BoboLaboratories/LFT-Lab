@@ -80,7 +80,7 @@ public final class Lexer {
                                 readChar(br);
                             } while (peek != '*' && peek != EOF);
                             if (peek == EOF) {
-                                throw new SyntaxError("unclosed multi-line before end of file");
+                                throw new SyntaxError("unclosed multi-line comment before end of file");
                             }
                             readChar(br); // consumes '*'
                         }
